@@ -81,6 +81,37 @@ async def session_socket(websocket: WebSocket, code: str):
                         "choice": choice, "request_id": request_id,
                     })
                     continue
+                if action == "submit_activity":
+                    if role != "student":
+                        await websocket.send_json({"type": "error", "message": "Only students can submit activity answers."})
+                        continue
+                    activity_id = message.get("activity_id")
+                    activity = session.activities.get(activity_id) if isinstance(activity_id, str) else None
+                    if (not activity or activity.status != "released" or
+                            activity.presentation_id != session.presentation_id or
+                            message.get("presentation_id") != session.presentation_id):
+                        await websocket.send_json({"type": "error", "message": "This activity is unavailable or the presentation has changed."})
+                        continue
+                    answer = message.get("answer")
+                    if activity.current["type"] == "mcq":
+                        valid = type(answer) is int and 0 <= answer < 4
+                    else:
+                        valid = isinstance(answer, str) and 0 < len(answer.strip()) <= 200
+                        if valid:
+                            answer = answer.strip()
+                    if not valid:
+                        await websocket.send_json({"type": "error", "message": "Enter a valid answer before submitting."})
+                        continue
+                    request_id = message.get("request_id")
+                    if type(request_id) is not int or request_id < 1:
+                        await websocket.send_json({"type": "error", "message": "Invalid activity request."})
+                        continue
+                    if activity.responses.get(token) != answer:
+                        activity.responses[token] = answer
+                        await session.broadcast()
+                    await websocket.send_json({"type": "activity_ack", "activity_id": activity.id,
+                                               "request_id": request_id})
+                    continue
                 if role != "lecturer":
                     await websocket.send_json({"type": "error", "message": "Only the lecturer can control the session."})
                     continue

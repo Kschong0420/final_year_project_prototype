@@ -4,9 +4,11 @@ import SessionStatus from '../components/SessionStatus'
 import SlideViewer from '../components/SlideViewer'
 import { LecturerFeedback, StudentFeedback } from '../components/UnderstandingFeedback'
 import MaterialUpload from '../components/MaterialUpload'
+import LecturerActivities from '../components/LecturerActivities'
+import StudentActivities from '../components/StudentActivities'
 
 export default function LivePage({ credentials, onLeave }) {
-  const { state, connection, error, send, submitFeedback, feedbackAck } = useSessionSocket(credentials)
+  const { state, connection, error, send, submitFeedback, feedbackAck, submitActivity, activityAck } = useSessionSocket(credentials)
   const [confirmEnd, setConfirmEnd] = useState(false)
   const lecturer = credentials.role === 'lecturer'
   const active = connection === 'connected' && state?.status === 'active'
@@ -16,7 +18,7 @@ export default function LivePage({ credentials, onLeave }) {
   return <div className={lecturer ? '' : 'mx-auto max-w-4xl'}>
     <div className="mb-7 flex flex-wrap items-start justify-between gap-5">
       <div className="min-w-0">
-        <p className="eyebrow">{lecturer ? 'Lecturer · Live session' : 'Student · Live session'}</p>
+        <p className="eyebrow">{lecturer ? 'Lecturer · Preparation and classroom' : 'Student · Live session'}</p>
         <h1 className="mt-2 break-words text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">{state?.title || 'Joining lecture…'}</h1>
       </div>
       <div className="session-code">
@@ -46,6 +48,8 @@ export default function LivePage({ credentials, onLeave }) {
         </section>}
 
         {!lecturer && feedbackAvailable && !ended && <StudentFeedback state={state} active={active} submitFeedback={submitFeedback} feedbackAck={feedbackAck} />}
+        {!lecturer && state && !ended && <StudentActivities state={state} active={active} submitActivity={submitActivity} activityAck={activityAck} />}
+        {lecturer && state && !ended && <LecturerActivities state={state} credentials={credentials} active={active} />}
         {!lecturer && !ended && <p className="mt-4 text-sm text-slate-600">The lecturer controls the slides. This view updates automatically.</p>}
       </div>
 
@@ -54,7 +58,9 @@ export default function LivePage({ credentials, onLeave }) {
         {feedbackAvailable && <LecturerFeedback state={state} />}
         <section className="panel" aria-labelledby="session-actions-title">
           <h2 id="session-actions-title" className="text-base font-semibold">Session</h2>
-          <p className="mt-1 text-sm leading-6 text-slate-600">Share the code above with students in the room.</p>
+          <p className="mt-1 text-sm leading-6 text-slate-600">Prepare lecture: upload material, review questions and approve them to save for later.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Start class: share the code above. Prepared questions stay saved until you choose Release to students. Additional generation remains available during class.</p>
+          <p className="mt-2 text-xs text-amber-800">Temporary storage: restarting the backend loses prepared questions and review records.</p>
           {!ended && connection !== 'unavailable' && <div className="mt-5">
             {!confirmEnd ? <button className="secondary w-full text-red-700" disabled={!active} onClick={() => setConfirmEnd(true)}>End lecture session</button> : <div className="space-y-3">
               <p className="text-sm text-slate-700">End this session for everyone?</p>

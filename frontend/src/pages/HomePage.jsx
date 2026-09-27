@@ -35,8 +35,8 @@ export default function HomePage({ onEnter, previousStudent }) {
       <form className="panel order-2 flex flex-col md:order-1" onSubmit={event => submit(event, 'lecturer')}>
         <div className="mb-7">
           <p className="eyebrow">For lecturers</p>
-          <h2 className="mt-2 text-xl font-semibold">Create a session</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Choose a title. Share the session code with students when the lecture is ready.</p>
+          <h2 className="mt-2 text-xl font-semibold">Prepare lecture</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Create a session, upload material and save approved questions before students join. Share the code when you are ready to start class.</p>
         </div>
         <label className="field-label" htmlFor="title">Lecture title</label>
         <input id="title" value={title} onChange={event => setTitle(event.target.value)} maxLength={120} required />

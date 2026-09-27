@@ -5,8 +5,10 @@ export function useSessionSocket(credentials) {
   const [connection, setConnection] = useState('connecting')
   const [error, setError] = useState('')
   const [feedbackAck, setFeedbackAck] = useState(null)
+  const [activityAck, setActivityAck] = useState(null)
   const socketRef = useRef(null)
   const nextFeedbackRequest = useRef(0)
+  const nextActivityRequest = useRef(0)
 
   useEffect(() => {
     let stopped = false
@@ -19,6 +21,7 @@ export function useSessionSocket(credentials) {
     setState(null)
     setError('')
     setFeedbackAck(null)
+    setActivityAck(null)
     setConnection('connecting')
 
     const connect = () => {
@@ -51,6 +54,9 @@ export function useSessionSocket(credentials) {
         } else if (message.type === 'feedback_ack') {
           setFeedbackAck(message)
           setError('')
+        } else if (message.type === 'activity_ack') {
+          setActivityAck(message)
+          setError('')
         } else if (message.type === 'error') setError(message.message)
       }
       socket.onerror = () => {
@@ -60,6 +66,7 @@ export function useSessionSocket(credentials) {
         clearInterval(heartbeat)
         if (stopped || terminal) return
         setFeedbackAck(null)
+        setActivityAck(null)
         if (event.code === 4403 || event.code === 4404) {
           terminal = true
           setConnection('unavailable')
@@ -103,5 +110,12 @@ export function useSessionSocket(credentials) {
     return sent ? requestId : null
   }, [send])
 
-  return { state, connection, error, send, submitFeedback, feedbackAck }
+  const submitActivity = useCallback((activityId, answer, presentationId) => {
+    const requestId = ++nextActivityRequest.current
+    const sent = send({ type: 'submit_activity', activity_id: activityId, answer,
+      presentation_id: presentationId, request_id: requestId })
+    return sent ? requestId : null
+  }, [send])
+
+  return { state, connection, error, send, submitFeedback, feedbackAck, submitActivity, activityAck }
 }

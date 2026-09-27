@@ -4,8 +4,8 @@ import { fileURLToPath } from 'node:url'
 const oleTableFixture = fileURLToPath(new URL('./fixtures/ole-table.pptx', import.meta.url))
 const adaptivePdfFixture = fileURLToPath(new URL('../../backend/tests/fixtures/adaptive-learning-page.pdf', import.meta.url))
 
-function smallPdf() {
-  const stream = 'BT /F1 20 Tf 50 100 Td (Uploaded PDF page) Tj ET'
+function smallPdf(text = 'Uploaded PDF page') {
+  const stream = `BT /F1 20 Tf 50 100 Td (${text}) Tj ET`
   const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
     '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
@@ -175,7 +175,7 @@ test('complex PDF table preview and extracted text match across the classroom', 
       }))
     }
     expect(new Set(hashes).size).toBe(1)
-    await lecturer.getByText('Extracted text').click()
+    await lecturer.getByText('Extracted text', { exact: true }).click()
     const extracted = await lecturer.locator('details p').textContent()
     expect(extracted).toContain('Study | Adaptation Approach')
     expect(extracted).toContain('further discussion or teaching action.')

@@ -1,4 +1,4 @@
-# Adaptive Classroom — Milestones 1–3
+# Adaptive Classroom — Milestones 1–4.1
 
 A local classroom presentation prototype for the FYP **AI-Based Adaptive Interactive Learning Platform for Real-Time Classroom Engagement**.
 
@@ -13,13 +13,32 @@ The lecturer can replace the sample presentation with a PDF or PPTX. PDF pages a
 page images with extracted text available below them. PPTX slides use visual previews when
 LibreOffice is installed, with structured source text extracted separately by python-pptx.
 Without LibreOffice, PPTX slides use a clearly labelled text view.
+The lecturer can prepare local AI-generated MCQs and fill-in-the-blank questions before
+class, or request additional questions during class, then edit, approve and release individual questions.
+Students answer released questions; the lecturer sees aggregate responses.
 
 This is a face-to-face classroom tool. It has no video, audio, screen sharing or recording.
-No AI generation, attendance or database integration is implemented.
+No AI explanations, attendance or database integration is implemented.
 
 ## Run on Windows (PowerShell)
 
 Prerequisites: Node.js 20.19+ or 22.12+ and Python 3.12 (or uv, which can install Python).
+
+For Milestone 4 question generation, install [Ollama for Windows](https://ollama.com/download/windows)
+if it is missing, then open a PowerShell terminal and download the initial pretrained model:
+
+```powershell
+ollama pull phi3:mini
+ollama list
+```
+
+Ollama normally runs in the background on Windows at `http://127.0.0.1:11434`.
+If it is not running, open the Ollama application or run `ollama serve` in a separate terminal.
+The model download is about 2.2 GB; no training or fine-tuning is performed.
+The [official Ollama Windows guide](https://docs.ollama.com/windows) and
+[Phi-3 Mini model page](https://ollama.com/library/phi3:mini) have current setup details.
+Question generation will show a useful error if Ollama or the configured model is unavailable;
+the rest of the classroom still works.
 
 Backend terminal:
 
@@ -33,6 +52,24 @@ uv pip install -r requirements.txt
 The first two commands are only needed for initial setup. If uv is unavailable, use
 `py -3.12 -m venv .venv` and `.\.venv\Scripts\python.exe -m pip install -r requirements.txt`.
 Exact tested Python dependencies are also recorded in requirements-lock.txt.
+The existing `httpx` dependency calls Ollama's local HTTP API; no Python AI package is needed.
+Set these optional variables in the **backend** terminal before starting Uvicorn:
+
+```powershell
+$env:OLLAMA_BASE_URL = 'http://127.0.0.1:11434'
+$env:OLLAMA_MODEL = 'phi3:mini'
+$env:AI_TIMEOUT_SECONDS = '45'
+$env:AI_TEMPERATURE = '0.2'
+$env:AI_NUM_PREDICT = '700'
+$env:AI_MCQ_COUNT = '2'
+$env:AI_BLANK_COUNT = '1'
+```
+
+These are defaults, so you can omit them. `backend/.env.example` is not loaded automatically.
+Changing the model requires only `OLLAMA_MODEL` and `ollama pull MODEL_NAME`.
+The question-count settings allow 0–5 per type, with at least one question in total.
+The timeout allows slow local machines; the FYP's under-10-second generation target is an
+evaluation target, not a guarantee.
 
 Frontend terminal:
 
@@ -88,6 +125,50 @@ loaded automatically. The threshold must be 0–100 and the minimum at least 1.
 
 ## Demonstration
 
+### Milestone 4.1: prepare first, release during class
+
+Pre-class preparation already works in the existing single active session: no student needs
+to be connected to upload, generate, edit, approve or discard. No second session system or
+new lifecycle gate is needed. **Start class** means sharing the existing code with students;
+there is no separate Start class button. Anyone with the code can join while you prepare,
+but students never receive unreleased questions. Joining does not change approval or release state.
+
+1. Create a lecture session in the lecturer window. Upload a PDF or PPTX before sharing the code.
+2. Preview the slides and extracted text. Under **Classroom activities**, choose a source slide.
+   Classroom slide changes automatically update this source selector. Selecting another source does not move the classroom slide.
+3. Inspect the visible source text. Optionally add factual **Additional teaching notes**, including
+   relevant adjacent-slide text labelled with its slide number. Choose Basic, Intermediate or Advanced.
+4. **Generate questions**, review and edit, **Save edits**, then **Approve** to save for later;
+   discard unsuitable questions. An edit requires approval again. Nothing releases automatically.
+5. Start class by sharing the code. Open two independent student windows and join. Both show no
+   activities until the lecturer explicitly selects **Release to students** on an approved question.
+6. Navigate the live presentation. Select any question source slide to retrieve its saved questions
+   without generating again; the selector lists the approved count for each slide.
+7. Release a saved activity. Submit different answers in the two student windows and inspect live
+   submission totals. Submit understanding feedback and check the lecturer totals without refreshing.
+8. Generate additional questions during class. While waiting, navigate slides, submit understanding
+   feedback and answer an already released activity. New questions enter **Awaiting review** and must
+   be edited as needed and approved before an explicit release, exactly as during preparation.
+
+Generation requests run outside the session lock. Generation controls are unavailable while
+a request is running; review, slide controls and student interaction remain available. A replacement
+presentation invalidates old activities and any generation response for the old presentation.
+
+Prompts preserve factual relationships in paragraphs, bullet/numbered lists, definitions and accurately
+extracted tables. Short factual text is allowed; headings alone should return no questions. Basic asks
+for recall/understanding, Intermediate for comprehension/application and Advanced for reasoning/application
+where supported. The model may fall back to basic questions; selected difficulty is a request, not a
+verified rating. Answer matching is only a heuristic and cannot establish factual correctness.
+
+Lecturer-only records retain the original valid AI question, current edited version, edit/approval/discard/
+release history, original source text, separate teaching notes, requested difficulty, model and generation
+duration (including the model availability check). Expand **Generation context and review record** to inspect
+them. Records are temporary: replacing material or restarting the backend loses them. Rejected raw model
+responses are not archived. There is no persistent evaluation dataset. Neither 70% acceptance nor generation
+under 10 seconds is claimed. See [Milestone 4.1 tests](docs/milestone-4.1-tests.md).
+
+### Existing classroom checks
+
 1. On the lecturer browser, create a lecture session and note the displayed code.
 2. In two independent tabs or browser windows, select the student form and enter that code.
 3. Change slides as the lecturer. Both students follow automatically.
@@ -110,6 +191,17 @@ submit it. Wait for the ready message. The new presentation starts at slide 1 in
 view. Uploading another file clears feedback from the previous presentation. Have two students
 respond on the uploaded slide, navigate and return to check slide-specific totals. Joining late
 or reconnecting with the same temporary credentials restores the current slide.
+
+For Milestone 4, upload a PDF or PPTX with selectable text, then choose its slide in
+**Classroom activities**. The source follows classroom slide changes; selecting another source does not move the live presentation. Inspect
+**Extracted text used for generation**, then click **Generate questions**. Review each
+question and answer, edit if needed, **Save edits**, **Approve**, and **Release to students**.
+Edits require approval again. **Discard** keeps the question's record but never releases it.
+Each student sees only released questions and may submit or change one current answer per
+question. A response is confirmed only after the backend acknowledges it. The lecturer sees
+totals, MCQ option counts and submitted fill-in answers; fill-in answers are not semantically
+graded. Replacing the presentation clears its questions and responses as well as understanding
+feedback. Refreshing or reconnecting with the same temporary token restores activity answers.
 
 If a student presses **Leave session** and joins the same code again in the same browser tab,
 the app reuses that tab's temporary student token. Their earlier choice remains one response.
@@ -149,7 +241,8 @@ The browser tests use three isolated browser contexts and end their lectures whe
 The visual PPTX table test uses a synthetic fixture at `frontend/tests/fixtures/ole-table.pptx`;
 it is skipped if the backend reports that LibreOffice is not installed.
 If interrupted, restart the in-memory backend before rerunning.
-See docs/milestone-1-tests.md, docs/milestone-2-tests.md and docs/milestone-3-tests.md for results.
+See docs/milestone-1-tests.md, docs/milestone-2-tests.md, docs/milestone-3-tests.md and
+docs/milestone-4-tests.md for results.
 
 ## Structure and design
 
@@ -162,11 +255,15 @@ See docs/milestone-1-tests.md, docs/milestone-2-tests.md and docs/milestone-3-te
 - backend/app/document_processing.py: PyMuPDF page previews, structured python-pptx extraction,
   optional isolated LibreOffice conversion and embedded-object preview placement
 - backend/app/reading_order.py: conservative column-aware ordering and nearby numbered-label grouping
+- backend/app/ai_generation.py: configurable local Ollama client, question prompt and validation
+- backend/app/activities.py: lecturer review, release and aggregate activity results
 - frontend/src/pages: home, lecturer and student views (LivePage renders role-specific controls)
 - frontend/src/hooks/useSessionSocket.js: connection lifecycle, retry and heartbeat
 - frontend/src/components/SlideViewer.jsx: presentation display
 - frontend/src/components/MaterialUpload.jsx: lecturer upload form and processing status
 - frontend/src/components/UnderstandingFeedback.jsx: student choice and lecturer aggregate view
+- frontend/src/components/LecturerActivities.jsx: extracted-text review and question approval
+- frontend/src/components/StudentActivities.jsx: released questions and confirmed submissions
 - frontend/src/services/api.js: HTTP requests and errors
 
 The server is authoritative: clients receive current state on connection, slide change and feedback.
@@ -178,6 +275,11 @@ slide; students who did not respond are not counted as Understand. The lecturer 
 aggregate feedback, and students receive only their own current-slide choice.
 Replacing a presentation changes its ID, resets slide navigation to 1 and clears prior feedback.
 Feedback for an old presentation ID is rejected, so delayed messages cannot appear under new slides.
+Activity generation runs asynchronously outside the session lock; slide sync and feedback remain live.
+The model receives the selected slide's extracted text and separately labelled optional teaching notes. Its JSON is validated, malformed or
+ungrounded questions are rejected, and partial valid results are marked for lecturer review.
+Original AI questions remain separate from lecturer edits in temporary session state. Student
+WebSocket snapshots omit correct answers and all pending, approved and discarded questions.
 
 ## Limitations
 
@@ -216,8 +318,13 @@ Feedback for an old presentation ID is rejected, so delayed messages cannot appe
 - The manual M2-T14 report remains outstanding: manually rejoining without the original student
   token may create a new participant and an extra response. Automated tests cover same-token
   reconnection, but this does not prove the reported manual path is resolved.
-- No MySQL, legacy `.ppt` conversion, accounts or AI integration in this milestone.
-- Reserved backend/.env.example documents OLLAMA_BASE_URL and OLLAMA_MODEL for future
-  configurable integration. It is not loaded and no AI service is invoked.
+- Generated questions may still be incomplete, ambiguous or factually wrong despite JSON
+  checks and source-answer matching. The lecturer must inspect the extracted text and each
+  question before release. Image-only slides and some complex PPTX/PDF layouts have incomplete
+  extracted text; OCR is not included. The acceptance and generation-time FYP targets have not
+  yet been measured with the real model.
+- Questions, edits, review decisions and student answers are in memory and disappear on backend
+  restart. Replacing the active presentation clears them. This prototype has no persistent
+  evaluation dataset, MySQL, legacy `.ppt` conversion or secure accounts.
 - Confusion detection is rule-based and classroom-wide. Explanations remain a future,
   lecturer-requested feature. Model training/fine-tuning is outside scope.

@@ -106,6 +106,7 @@ async def upload_material(code: str, request: Request, file: UploadFile = File(.
                                        "slide_count": len(slides), "rendering": rendering, "warning": warning}
             session.current_slide = 0
             session.feedback.clear()
+            session.activities.clear()
             await session.broadcast()
         return {"filename": name, "slide_count": len(slides), "presentation_id": material_id,
                 "rendering": rendering, "warning": warning}
