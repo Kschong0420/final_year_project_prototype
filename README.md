@@ -1,4 +1,4 @@
-# Adaptive Classroom — Milestones 1–2
+# Adaptive Classroom — Milestones 1–3
 
 A local classroom presentation prototype for the FYP **AI-Based Adaptive Interactive Learning Platform for Real-Time Classroom Engagement**.
 
@@ -9,9 +9,13 @@ One active lecture session, a six-character join code, five sample slides, lectu
 student follow mode, late joining, automatic reconnection, live connection counts and ending a session.
 Students can submit Understand or Not Understand on the current slide. The lecturer sees live,
 slide-specific totals, percentages and rule-based confusion flags.
+The lecturer can replace the sample presentation with a PDF or PPTX. PDF pages are shown as
+page images with extracted text available below them. PPTX slides use visual previews when
+LibreOffice is installed, with structured source text extracted separately by python-pptx.
+Without LibreOffice, PPTX slides use a clearly labelled text view.
 
 This is a face-to-face classroom tool. It has no video, audio, screen sharing or recording.
-No document uploads, AI generation, attendance or database integration are implemented.
+No AI generation, attendance or database integration is implemented.
 
 ## Run on Windows (PowerShell)
 
@@ -41,6 +45,32 @@ npm.cmd run dev
 Open http://localhost:5173. The frontend proxies HTTP and WebSockets to the backend,
 so student devices only need access to frontend port 5173.
 The backend API documentation is at http://127.0.0.1:8000/docs.
+
+Upload files are saved under `backend/storage/uploads/`; generated slide previews are saved under
+`backend/storage/previews/`. Both paths are ignored by Git. Original files are not publicly
+served. Slide preview requests require the current session's temporary lecturer or student token.
+The default upload size limit is 25 MB. To set a 30 MB limit, set
+`$env:MAX_UPLOAD_MB = "30"` before starting the backend. The size check runs before parsing.
+
+For visual PPTX previews, install the **LibreOffice desktop application** on the backend PC.
+It is a separate local executable, not a Python package. The backend looks for `soffice` on
+`PATH` and at the standard Windows install locations. If it is installed elsewhere, set its
+path in the backend PowerShell terminal before starting Uvicorn:
+
+```powershell
+$env:LIBREOFFICE_PATH = 'C:\Program Files\LibreOffice\program\soffice.exe'
+$env:LIBREOFFICE_TIMEOUT_SECONDS = '60'
+```
+
+Use the actual path to `soffice.exe` on your PC. The backend starts LibreOffice in headless
+mode with a separate temporary profile and a conversion timeout; it renders the resulting PDF
+pages with PyMuPDF. If LibreOffice is absent or conversion fails, the PPTX remains usable in
+text view and the lecturer sees why visual rendering was unavailable. A successful conversion
+still needs manual comparison with the original presentation because fonts, animations and
+some PowerPoint effects can render differently. LibreOffice was used in the latest tests with a
+generated embedded-table slide and an uploaded 27-slide deck. A source OLE preview may itself
+be cropped, so check complex tables against the original PowerPoint file.
+`backend/.env.example` lists these settings but is not loaded automatically.
 
 Use one backend worker. Do not enable reload during the demonstration: restarting the
 backend clears all server-side sessions and feedback. The default confusion rule flags a slide when at least
@@ -75,6 +105,12 @@ loaded automatically. The threshold must be 0–100 and the minimum at least 1.
 11. Refresh or reconnect a student window. Their choice for each slide is restored while the
     backend remains running. End the session from the lecturer interface.
 
+For Milestone 3, choose **Upload material** in the lecturer panel, select a PDF or PPTX, and
+submit it. Wait for the ready message. The new presentation starts at slide 1 in every connected
+view. Uploading another file clears feedback from the previous presentation. Have two students
+respond on the uploaded slide, navigate and return to check slide-specific totals. Joining late
+or reconnecting with the same temporary credentials restores the current slide.
+
 If a student presses **Leave session** and joins the same code again in the same browser tab,
 the app reuses that tab's temporary student token. Their earlier choice remains one response.
 The student view shows **Response saved** only after the backend acknowledges a submission.
@@ -95,7 +131,9 @@ cd C:\Users\user\Documents\fyp\Code\backend
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-This starts an isolated backend on port 8768 and exercises real HTTP and WebSocket clients.
+This starts an isolated backend on port 8768 for the existing tests. The material tests use
+generated disposable PDF/PPTX files and an isolated FastAPI test client. The real LibreOffice
+table test runs when LibreOffice is installed and is skipped otherwise.
 Leave port 8768 free.
 
 With the demo backend and frontend running and no active lecture session:
@@ -108,8 +146,10 @@ npm.cmd run build
 ```
 
 The browser tests use three isolated browser contexts and end their lectures when successful.
+The visual PPTX table test uses a synthetic fixture at `frontend/tests/fixtures/ole-table.pptx`;
+it is skipped if the backend reports that LibreOffice is not installed.
 If interrupted, restart the in-memory backend before rerunning.
-See docs/milestone-1-tests.md and docs/milestone-2-tests.md for execution results.
+See docs/milestone-1-tests.md, docs/milestone-2-tests.md and docs/milestone-3-tests.md for results.
 
 ## Structure and design
 
@@ -118,9 +158,14 @@ See docs/milestone-1-tests.md and docs/milestone-2-tests.md for execution result
 - backend/app/realtime.py: token validation, slide commands, heartbeat and disconnect handling
 - backend/app/feedback.py: configurable classroom-wide confusion rule
 - backend/app/slides.py: sample lecture
+- backend/app/materials.py: lecturer-only upload, file-size checks and authenticated PDF previews
+- backend/app/document_processing.py: PyMuPDF page previews, structured python-pptx extraction,
+  optional isolated LibreOffice conversion and embedded-object preview placement
+- backend/app/reading_order.py: conservative column-aware ordering and nearby numbered-label grouping
 - frontend/src/pages: home, lecturer and student views (LivePage renders role-specific controls)
 - frontend/src/hooks/useSessionSocket.js: connection lifecycle, retry and heartbeat
 - frontend/src/components/SlideViewer.jsx: presentation display
+- frontend/src/components/MaterialUpload.jsx: lecturer upload form and processing status
 - frontend/src/components/UnderstandingFeedback.jsx: student choice and lecturer aggregate view
 - frontend/src/services/api.js: HTTP requests and errors
 
@@ -131,12 +176,17 @@ Feedback is stored as one current choice per student token per slide. Changing a
 the previous value. The denominator for percentages is the number of responses submitted for that
 slide; students who did not respond are not counted as Understand. The lecturer receives only
 aggregate feedback, and students receive only their own current-slide choice.
+Replacing a presentation changes its ID, resets slide navigation to 1 and clears prior feedback.
+Feedback for an old presentation ID is rejected, so delayed messages cannot appear under new slides.
 
 ## Limitations
 
 - Temporary role selection is NOT secure account authentication. Anyone with local access can
   create a session when none is active. Treat session tokens as temporary capabilities.
 - In-memory sessions and feedback are lost on backend restart and do not support multiple backend workers.
+- The saved upload files and PDF previews remain on disk after a restart, but temporary session
+  metadata is lost. Create a new session and upload the file again. Remove old files from
+  `backend/storage/` manually when no longer needed.
 - Keep the lecturer tab open. Closing it loses its sessionStorage credentials; if there is no
   surviving lecturer tab, restart the backend to clear the orphaned session.
 - Multiple tabs copied from the same student tab may share its credentials and count as one
@@ -147,7 +197,26 @@ aggregate feedback, and students receive only their own current-slide choice.
 - Counts represent connected student tokens, not verified identities or attendance.
 - Feedback uses temporary student tokens to avoid duplicate counting. This is not complete
   database-level anonymity or identity verification. Do not use it for sensitive evaluation data.
-- No MySQL, document conversion, accounts or AI integration in this milestone.
+- PPTX visual previews require LibreOffice. Without it, the text view preserves titles, list
+  levels, and table rows/cells but cannot show images or exact layout. Even with LibreOffice,
+  fonts, animations, and some PowerPoint effects may differ from Microsoft PowerPoint.
+  Embedded Excel/OLE objects are placed from their PPTX preview image because LibreOffice can
+  shrink them to a small square near the upper-left. A PPTX preview image can itself be cropped
+  or low-resolution; this repair cannot reconstruct content missing from that preview.
+- PDF and PPTX text extraction uses layout cues for clear two-column pages and joins nearby
+  numbered labels to their text. PDF table extraction uses PyMuPDF's strict drawn-line strategy:
+  this avoids treating coloured paragraph panels as tables, but borderless tables may be left
+  as ordinary text. Unusual layouts, overlapping or grouped shapes, and inherited list
+  formatting can still have ambiguous reading order. Native PPTX tables retain rows and cells;
+  raster and embedded OLE table text needs a separate extraction or OCR step. Each structured
+  block records its slide number. Visual slide rendering does not depend on extracted text order.
+- Older `.ppt` files must be converted to `.pptx`. PDF pages without selectable text still show
+  a page image, but OCR is not performed. PyMuPDF may recover slightly damaged PDFs; genuinely
+  unreadable files are rejected. Complex or very large pages may take longer to render.
+- The manual M2-T14 report remains outstanding: manually rejoining without the original student
+  token may create a new participant and an extra response. Automated tests cover same-token
+  reconnection, but this does not prove the reported manual path is resolved.
+- No MySQL, legacy `.ppt` conversion, accounts or AI integration in this milestone.
 - Reserved backend/.env.example documents OLLAMA_BASE_URL and OLLAMA_MODEL for future
   configurable integration. It is not loaded and no AI service is invoked.
 - Confusion detection is rule-based and classroom-wide. Explanations remain a future,

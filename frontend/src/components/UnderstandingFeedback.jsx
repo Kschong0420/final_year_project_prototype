@@ -8,7 +8,7 @@ export function StudentFeedback({ state, active, submitFeedback, feedbackAck }) 
   useEffect(() => {
     setPending(null)
     setNotice('')
-  }, [state.current_slide])
+  }, [state.current_slide, state.presentation_id])
 
   useEffect(() => {
     if (!active) {
@@ -36,7 +36,7 @@ export function StudentFeedback({ state, active, submitFeedback, feedbackAck }) 
 
   function submit(choice) {
     setNotice('')
-    const id = submitFeedback(state.current_slide, choice)
+    const id = submitFeedback(state.current_slide, choice, state.presentation_id)
     if (id === null) {
       setNotice('Response not sent. Wait for the connection and try again.')
       return

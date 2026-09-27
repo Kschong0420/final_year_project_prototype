@@ -1,7 +1,6 @@
 import asyncio
 import json
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
-from .slides import SLIDES
 
 router = APIRouter()
 
@@ -63,6 +62,9 @@ async def session_socket(websocket: WebSocket, code: str):
                     if type(slide_index) is not int or slide_index != session.current_slide:
                         await websocket.send_json({"type": "error", "message": "The slide has changed. Submit feedback for the current slide."})
                         continue
+                    if session.active_material and message.get("presentation_id") != session.presentation_id:
+                        await websocket.send_json({"type": "error", "message": "The presentation has changed. Try your response again."})
+                        continue
                     if choice not in ("understand", "not_understand"):
                         await websocket.send_json({"type": "error", "message": "Choose Understand or Not Understand."})
                         continue
@@ -84,7 +86,7 @@ async def session_socket(websocket: WebSocket, code: str):
                     continue
                 if action == "set_slide":
                     index = message.get("index")
-                    if type(index) is not int or not 0 <= index < len(SLIDES):
+                    if type(index) is not int or not 0 <= index < len(session.slides):
                         await websocket.send_json({"type": "error", "message": "Invalid slide number."})
                         continue
                     session.current_slide = index

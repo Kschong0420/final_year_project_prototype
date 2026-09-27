@@ -3,6 +3,7 @@ import { useSessionSocket } from '../hooks/useSessionSocket'
 import SessionStatus from '../components/SessionStatus'
 import SlideViewer from '../components/SlideViewer'
 import { LecturerFeedback, StudentFeedback } from '../components/UnderstandingFeedback'
+import MaterialUpload from '../components/MaterialUpload'
 
 export default function LivePage({ credentials, onLeave }) {
   const { state, connection, error, send, submitFeedback, feedbackAck } = useSessionSocket(credentials)
@@ -36,7 +37,7 @@ export default function LivePage({ credentials, onLeave }) {
 
     <div className={lecturer ? 'grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px]' : ''}>
       <div className="min-w-0">
-        {state ? <SlideViewer state={state} /> : <div className="slide-surface flex min-h-72 items-center text-slate-500">Loading the current slide…</div>}
+        {state ? <SlideViewer state={state} token={credentials.token} /> : <div className="slide-surface flex min-h-72 items-center text-slate-500">Loading the current slide…</div>}
 
         {lecturer && state && !ended && <section className="mt-4 flex flex-wrap items-center gap-3" aria-label="Slide controls">
           <button className="secondary min-w-36" disabled={!active || state.current_slide === 0} onClick={() => send({ type: 'set_slide', index: state.current_slide - 1 })}>Previous slide</button>
@@ -49,6 +50,7 @@ export default function LivePage({ credentials, onLeave }) {
       </div>
 
       {lecturer && <aside className="space-y-4">
+        {!ended && <MaterialUpload credentials={credentials} active={active} material={state?.active_material} />}
         {feedbackAvailable && <LecturerFeedback state={state} />}
         <section className="panel" aria-labelledby="session-actions-title">
           <h2 id="session-actions-title" className="text-base font-semibold">Session</h2>

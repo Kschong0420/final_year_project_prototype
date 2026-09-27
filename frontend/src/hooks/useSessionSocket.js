@@ -97,9 +97,9 @@ export function useSessionSocket(credentials) {
     return true
   }, [connection])
 
-  const submitFeedback = useCallback((slideIndex, choice) => {
+  const submitFeedback = useCallback((slideIndex, choice, presentationId) => {
     const requestId = ++nextFeedbackRequest.current
-    const sent = send({ type: 'submit_feedback', slide_index: slideIndex, choice, request_id: requestId })
+    const sent = send({ type: 'submit_feedback', slide_index: slideIndex, choice, request_id: requestId, presentation_id: presentationId })
     return sent ? requestId : null
   }, [send])
 

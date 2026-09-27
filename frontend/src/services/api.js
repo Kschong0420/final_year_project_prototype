@@ -16,3 +16,19 @@ export async function request(path, body) {
   }
   return data
 }
+
+export async function uploadMaterial(code, token, file) {
+  const form = new FormData()
+  form.append('file', file)
+  let response
+  try {
+    response = await fetch(`/api/sessions/${encodeURIComponent(code)}/materials`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form,
+    })
+  } catch {
+    throw new Error('Cannot reach the backend. Check the connection and try again.')
+  }
+  const data = await response.json()
+  if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'The upload failed. Try another file.')
+  return data
+}

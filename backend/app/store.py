@@ -18,12 +18,18 @@ class Session:
     connections: dict[WebSocket, tuple[str, str]] = field(default_factory=dict)
     feedback: dict[int, dict[str, str]] = field(default_factory=dict)
     confusion_rules: ConfusionRules = field(default_factory=ConfusionRules)
+    slides: list[dict] = field(default_factory=lambda: [slide.copy() for slide in SLIDES])
+    presentation_id: str = "sample"
+    active_material: dict | None = None
+    upload_in_progress: bool = False
 
     def snapshot(self, role, token):
         state = {
             "type": "state", "code": self.code, "title": self.title,
             "status": self.status, "current_slide": self.current_slide,
-            "slides": SLIDES, "revision": self.revision,
+            "slides": self.slides, "revision": self.revision,
+            "presentation_id": self.presentation_id,
+            "active_material": self.active_material,
             "connected_students": len({token for role, token in self.connections.values() if role == "student"}),
             "lecturer_connected": any(role == "lecturer" for role, _ in self.connections.values()),
         }
@@ -32,7 +38,7 @@ class Session:
                 self.feedback.get(self.current_slide, {}), self.confusion_rules
             )
             state["flagged_slides"] = [
-                index for index in range(len(SLIDES))
+                index for index in range(len(self.slides))
                 if summarise(self.feedback.get(index, {}), self.confusion_rules)["flagged"]
             ]
             state["confusion_rules"] = {
