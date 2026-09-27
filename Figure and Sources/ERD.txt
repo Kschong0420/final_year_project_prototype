@@ -1,0 +1,255 @@
+FYP: AI-Based Adaptive Interactive Learning Platform for Real-Time Classroom Engagement
+FIGURE 3.4: PROPOSED ENTITY RELATIONSHIP DIAGRAM (ERD)
+========================================================
+
+Legend:
+  PK = Primary Key
+  FK = Foreign Key
+  UK = Unique Key
+  1:N = One-to-many
+
+1. ENTITY DEFINITIONS
+---------------------
+
+USER
+  PK  user_id         INT
+      name            VARCHAR(100)
+  UK  email           VARCHAR(100)
+      password_hash   VARCHAR(255)
+      role            ENUM('lecturer','student')
+      created_at      DATETIME
+
+LECTURE_SESSION
+  PK  session_id      INT
+  FK  lecturer_id     INT           -> USER.user_id
+      title           VARCHAR(255)
+      description     TEXT
+  UK  session_code    VARCHAR(20)
+      start_time      DATETIME
+      end_time        DATETIME
+      status          ENUM('scheduled','active','ended')
+      created_at      DATETIME
+
+SESSION_PARTICIPANT
+  PK  participant_id  INT
+  FK  session_id      INT           -> LECTURE_SESSION.session_id
+  FK  student_id      INT           -> USER.user_id
+      joined_at       DATETIME
+      UNIQUE(session_id, student_id)
+
+LECTURE_MATERIAL
+  PK  material_id     INT
+  FK  session_id      INT           -> LECTURE_SESSION.session_id
+      file_name       VARCHAR(255)
+      file_type       ENUM('pdf','ppt','pptx')
+      file_path       VARCHAR(255)
+      uploaded_at     DATETIME
+
+SLIDE
+  PK  slide_id        INT
+  FK  material_id     INT           -> LECTURE_MATERIAL.material_id
+      slide_number    INT
+      slide_title     VARCHAR(255)
+      content_text    TEXT
+      UNIQUE(material_id, slide_number)
+
+ACTIVITY
+  PK  activity_id     INT
+  FK  slide_id        INT           -> SLIDE.slide_id
+      activity_type   ENUM('mcq','fill_blank')
+      question_text   TEXT
+      options         JSON          -- MCQ answer choices; NULL for fill-in-the-blank
+      correct_answer  TEXT
+      review_status   ENUM('pending','approved','released') DEFAULT 'pending'
+      order_index     INT
+      created_at      DATETIME
+
+ACTIVITY_RESPONSE
+  PK  response_id     INT
+  FK  activity_id     INT           -> ACTIVITY.activity_id
+  FK  student_id      INT           -> USER.user_id
+      response_text   TEXT
+      submitted_at    DATETIME
+      UNIQUE(activity_id, student_id) -- Assumes one response per student per activity
+
+ANONYMOUS_QUESTION
+  PK  question_id     INT
+  FK  session_id      INT           -> LECTURE_SESSION.session_id
+  FK  slide_id        INT           -> SLIDE.slide_id
+      question_text   TEXT
+      submitted_at    DATETIME
+      -- No student_id: the question is not linked to a user in this table.
+
+UNDERSTANDING_FEEDBACK
+  PK  feedback_id     INT
+  FK  session_id      INT           -> LECTURE_SESSION.session_id
+  FK  slide_id        INT           -> SLIDE.slide_id
+  FK  student_id      INT           -> USER.user_id
+      status          ENUM('understand','not_understand')
+      submitted_at    DATETIME
+      UNIQUE(slide_id, student_id)
+      -- student_id permits one record per student per slide.
+      -- The lecturer dashboard shows only aggregated feedback, not identities.
+      -- A changed response updates the existing record rather than adding another.
+
+AI_EXPLANATION
+  PK  explanation_id  INT
+  FK  slide_id        INT           -> SLIDE.slide_id
+      explanation_text TEXT
+      generated_at    DATETIME
+      -- Always initiated by a lecturer's request; no automatic generation path.
+      -- No generated_by field and no direct session_id FK are necessary.
+
+2. RELATIONSHIPS
+----------------
+
+No.  Parent Table         Cardinality  Child Table             Foreign Key
+---  -------------------  -----------  ----------------------  -------------------------------
+ 1   USER                 1:N          LECTURE_SESSION         LECTURE_SESSION.lecturer_id
+ 2   USER                 1:N          SESSION_PARTICIPANT     SESSION_PARTICIPANT.student_id
+ 3   LECTURE_SESSION      1:N          SESSION_PARTICIPANT     SESSION_PARTICIPANT.session_id
+ 4   LECTURE_SESSION      1:N          LECTURE_MATERIAL        LECTURE_MATERIAL.session_id
+ 5   LECTURE_MATERIAL     1:N          SLIDE                   SLIDE.material_id
+ 6   SLIDE                1:N          ACTIVITY                ACTIVITY.slide_id
+ 7   ACTIVITY             1:N          ACTIVITY_RESPONSE       ACTIVITY_RESPONSE.activity_id
+ 8   USER                 1:N          ACTIVITY_RESPONSE       ACTIVITY_RESPONSE.student_id
+ 9   LECTURE_SESSION      1:N          ANONYMOUS_QUESTION      ANONYMOUS_QUESTION.session_id
+10   SLIDE                1:N          ANONYMOUS_QUESTION      ANONYMOUS_QUESTION.slide_id
+11   LECTURE_SESSION      1:N          UNDERSTANDING_FEEDBACK  UNDERSTANDING_FEEDBACK.session_id
+12   SLIDE                1:N          UNDERSTANDING_FEEDBACK  UNDERSTANDING_FEEDBACK.slide_id
+13   USER                 1:N          UNDERSTANDING_FEEDBACK  UNDERSTANDING_FEEDBACK.student_id
+14   SLIDE                1:N          AI_EXPLANATION          AI_EXPLANATION.slide_id
+
+SESSION_PARTICIPANT is a junction table implementing the many-to-many
+relationship between students (USER with role='student') and lecture sessions.
+
+3. IMPLEMENTATION NOTES
+-----------------------
+
+- Validate user roles in the backend: lecturer_id must belong to a lecturer;
+  student_id in participant/response/feedback records must belong to a student.
+- Validate that a slide referenced by ANONYMOUS_QUESTION or
+  UNDERSTANDING_FEEDBACK belongs to its specified session. session_id is
+  also obtainable through SLIDE -> LECTURE_MATERIAL -> LECTURE_SESSION,
+  so retaining both session_id and slide_id requires consistency checks.
+- Use SESSION_PARTICIPANT(session_id, student_id) as a composite unique
+  constraint to prevent duplicate joins.
+- Use UNDERSTANDING_FEEDBACK(slide_id, student_id) as a composite unique
+  constraint; update the existing answer if the student changes feedback.
+- Use ACTIVITY_RESPONSE(activity_id, student_id) as a composite unique
+  constraint only if the system permits a single submission per activity.
+- A lecturer must review and approve generated activities before releasing
+  them. review_status records pending, approved, or released stages;
+  rejected activities can be discarded.
+- AI-generated activity acceptance (70% target) is measured through lecturer
+  evaluation, not by the existence of the review_status field alone.
+- No student_id is stored for ANONYMOUS_QUESTION. Even so, avoid revealing
+  identities through lecturer-facing logs or other application metadata.
+- UNDERSTANDING_FEEDBACK is anonymous to lecturers, not anonymous to the
+  backend database. Display classroom-wide totals/percentages only.
+- AI_EXPLANATION is generated only on lecturer request; slide_id links it
+  indirectly to the session via LECTURE_MATERIAL.
+- Actual MySQL implementation may refine column nullability, indexes,
+  cascading behavior, and field lengths during development.
+
+4. MERMAID ERD SOURCE (OPTIONAL)
+--------------------------------
+Paste the block below into https://mermaid.live/ to render a diagram.
+
+```mermaid
+erDiagram
+    USER {
+        INT user_id PK
+        VARCHAR_100 name
+        VARCHAR_100 email UK
+        VARCHAR_255 password_hash
+        ENUM role
+        DATETIME created_at
+    }
+    LECTURE_SESSION {
+        INT session_id PK
+        INT lecturer_id FK
+        VARCHAR_255 title
+        TEXT description
+        VARCHAR_20 session_code UK
+        DATETIME start_time
+        DATETIME end_time
+        ENUM status
+        DATETIME created_at
+    }
+    SESSION_PARTICIPANT {
+        INT participant_id PK
+        INT session_id FK
+        INT student_id FK
+        DATETIME joined_at
+    }
+    LECTURE_MATERIAL {
+        INT material_id PK
+        INT session_id FK
+        VARCHAR_255 file_name
+        ENUM file_type
+        VARCHAR_255 file_path
+        DATETIME uploaded_at
+    }
+    SLIDE {
+        INT slide_id PK
+        INT material_id FK
+        INT slide_number
+        VARCHAR_255 slide_title
+        TEXT content_text
+    }
+    ACTIVITY {
+        INT activity_id PK
+        INT slide_id FK
+        ENUM activity_type
+        TEXT question_text
+        JSON options
+        TEXT correct_answer
+        ENUM review_status
+        INT order_index
+        DATETIME created_at
+    }
+    ACTIVITY_RESPONSE {
+        INT response_id PK
+        INT activity_id FK
+        INT student_id FK
+        TEXT response_text
+        DATETIME submitted_at
+    }
+    ANONYMOUS_QUESTION {
+        INT question_id PK
+        INT session_id FK
+        INT slide_id FK
+        TEXT question_text
+        DATETIME submitted_at
+    }
+    UNDERSTANDING_FEEDBACK {
+        INT feedback_id PK
+        INT session_id FK
+        INT slide_id FK
+        INT student_id FK
+        ENUM status
+        DATETIME submitted_at
+    }
+    AI_EXPLANATION {
+        INT explanation_id PK
+        INT slide_id FK
+        TEXT explanation_text
+        DATETIME generated_at
+    }
+
+    USER ||--o{ LECTURE_SESSION : creates
+    USER ||--o{ SESSION_PARTICIPANT : joins
+    LECTURE_SESSION ||--o{ SESSION_PARTICIPANT : includes
+    LECTURE_SESSION ||--o{ LECTURE_MATERIAL : contains
+    LECTURE_MATERIAL ||--o{ SLIDE : contains
+    SLIDE ||--o{ ACTIVITY : has
+    ACTIVITY ||--o{ ACTIVITY_RESPONSE : receives
+    USER ||--o{ ACTIVITY_RESPONSE : submits
+    LECTURE_SESSION ||--o{ ANONYMOUS_QUESTION : receives
+    SLIDE ||--o{ ANONYMOUS_QUESTION : receives
+    LECTURE_SESSION ||--o{ UNDERSTANDING_FEEDBACK : collects
+    SLIDE ||--o{ UNDERSTANDING_FEEDBACK : receives
+    USER ||--o{ UNDERSTANDING_FEEDBACK : submits
+    SLIDE ||--o{ AI_EXPLANATION : has
+```
