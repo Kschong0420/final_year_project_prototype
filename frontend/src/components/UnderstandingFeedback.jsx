@@ -45,8 +45,7 @@ export function StudentFeedback({ state, active, submitFeedback, feedbackAck }) 
   }
 
   return <section className="panel mt-5" aria-labelledby="student-feedback-title">
-    <h2 id="student-feedback-title" className="text-base font-semibold">Do you understand this slide?</h2>
-    <p className="mt-1 text-sm leading-6 text-slate-600">Choose an answer. You can change it while this slide is shown.</p>
+    <h2 id="student-feedback-title" className="text-base font-semibold">Do you understand this slide? <span className="text-sm font-normal text-slate-500">Slide {state.current_slide + 1}</span></h2>
     <div className="mt-5 grid gap-3 sm:grid-cols-2">
       <button className={'feedback-choice ' + (selected === 'understand' ? 'feedback-selected' : '')}
         disabled={!active} aria-pressed={selected === 'understand'} onClick={() => submit('understand')}>Understand</button>
@@ -62,47 +61,32 @@ export function StudentFeedback({ state, active, submitFeedback, feedbackAck }) 
   </section>
 }
 
-function CountRow({ label, count, percent, testId }) {
-  return <div className="py-4" data-testid={testId}>
-    <div className="flex items-baseline justify-between gap-3 text-sm">
-      <span className="font-medium text-slate-800">{label}</span>
-      <span className="tabular-nums text-slate-700">{count} · {Math.round(percent)}%</span>
-    </div>
-    <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100" aria-hidden="true">
-      <div className="h-full rounded-full bg-teal-700" style={{ width: `${percent}%` }} />
-    </div>
-  </div>
-}
-
 export function LecturerFeedback({ state }) {
   const feedback = state.current_feedback
   const flagged = state.flagged_slides || []
   const rules = state.confusion_rules
   return <section className="panel" aria-labelledby="insights-title">
-    <div className="border-b border-slate-200 pb-4">
-      <p className="eyebrow">Current slide</p>
-      <h2 id="insights-title" className="mt-1 text-base font-semibold">Understanding feedback</h2>
-      <p data-testid="feedback-total" className="mt-2 text-sm tabular-nums text-slate-600">{feedback.total} {feedback.total === 1 ? 'response' : 'responses'} submitted</p>
+    <div className="flex flex-wrap items-baseline justify-between gap-1">
+      <h2 id="insights-title" className="text-sm font-semibold">Understanding feedback</h2>
+      <p data-testid="feedback-total" className="text-xs text-slate-600">{feedback.total} {feedback.total === 1 ? 'response' : 'responses'} submitted</p>
     </div>
-
-    {feedback.total === 0 && <p className="pt-5 text-sm leading-6 text-slate-600">No feedback for this slide yet. Unsubmitted responses are not counted as Understand.</p>}
-    <div className="divide-y divide-slate-200">
-      <CountRow label="Understand" count={feedback.understand} percent={feedback.understand_percent} testId="understand-count" />
-      <CountRow label="Not Understand" count={feedback.not_understand} percent={feedback.not_understand_percent} testId="not-understand-count" />
+    <div className="feedback-breakdown">
+      <div className="feedback-breakdown-labels">
+        <div data-testid="understand-count"><span className="feedback-key understand-key" aria-hidden="true" />Understand <strong>{feedback.understand} · {Math.round(feedback.understand_percent)}%</strong></div>
+        <div data-testid="not-understand-count"><span className="feedback-key not-understand-key" aria-hidden="true" />Not Understand <strong>{feedback.not_understand} · {Math.round(feedback.not_understand_percent)}%</strong></div>
+      </div>
+      <div className="feedback-split-bar" role="img" data-testid="feedback-split-bar"
+        aria-label={`${feedback.understand} understand (${Math.round(feedback.understand_percent)}%); ${feedback.not_understand} do not understand (${Math.round(feedback.not_understand_percent)}%)`}>
+        <span className="feedback-understand-segment" data-testid="feedback-understand-segment" style={{ width: `${feedback.understand_percent}%` }} />
+        <span className="feedback-not-understand-segment" data-testid="feedback-not-understand-segment" style={{ width: `${feedback.not_understand_percent}%` }} />
+      </div>
     </div>
-
-    <div className={'mt-2 rounded-md border px-3 py-3 text-sm ' + (feedback.flagged ? 'border-amber-300 bg-amber-50 text-amber-950' : 'border-slate-200 bg-slate-50 text-slate-700')} data-testid="confusion-status" role="status">
-      <p className="font-semibold">{feedback.flagged ? 'Potential confusion on this slide' : 'No confusion flag for this slide'}</p>
-      <p className="mt-1 leading-5">{feedback.total < rules.min_responses
-        ? `At least ${rules.min_responses} responses are needed before this slide can be flagged.`
-        : `Flagged when Not Understand reaches ${rules.threshold_percent}% of submitted responses.`}</p>
+    <div className={'mt-2 rounded border px-2 py-1 text-xs ' + (feedback.flagged ? 'border-amber-300 bg-amber-50 text-amber-950' : 'border-slate-200 text-slate-700')} data-testid="confusion-status" role="status">
+      {feedback.flagged ? 'Potential confusion on this slide' : 'No confusion flag for this slide'}
     </div>
-
-    <div className={'mt-6 rounded-md border p-4 ' + (flagged.length ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white')}>
-      <h3 className="text-sm font-semibold">Flagged slides</h3>
-      <p data-testid="flagged-slides" className="mt-1 text-sm leading-6 text-slate-600">
-        {flagged.length ? flagged.map(index => index + 1).join(', ') : 'None'}
-      </p>
-    </div>
+    <p className="mt-2 text-xs text-slate-600">Flagged slides: <span data-testid="flagged-slides">{flagged.length ? flagged.map(index => index + 1).join(', ') : 'None'}</span></p>
+    <details className="mt-2 text-xs text-slate-500"><summary>Feedback details</summary>
+      <p className="mt-1">Flagged when at least {rules.min_responses} students respond and Not Understand reaches {rules.threshold_percent}% of submitted responses. Unsubmitted responses are not counted as Understand.</p>
+    </details>
   </section>
 }

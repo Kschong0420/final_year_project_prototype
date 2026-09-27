@@ -60,6 +60,7 @@ test('lecturer PDF upload appears for two students and resets previous feedback'
       await expect(student.getByRole('img', { name: 'Page 1 from class.pdf' })).toBeVisible()
       await expect(student.getByTestId('my-feedback')).toHaveText('No response submitted for this slide.')
     }
+    await lecturer.getByText('Replace material', { exact: true }).click()
     await lecturer.getByLabel('Lecture file').setInputFiles({ name: 'class-two.pdf', mimeType: 'application/pdf', buffer: smallPdf() })
     await lecturer.getByRole('button', { name: 'Upload material' }).click()
     await expect(lecturer.getByText('class-two.pdf is ready (1 slide).')).toBeVisible()
@@ -71,6 +72,7 @@ test('lecturer PDF upload appears for two students and resets previous feedback'
     await studentB.getByRole('button', { name: 'Not Understand' }).click()
     await expect(lecturer.getByTestId('feedback-total')).toHaveText('2 responses submitted')
     await expect(lecturer.getByTestId('confusion-status')).toContainText('Potential confusion')
+    await lecturer.getByText('Replace material', { exact: true }).click()
     await lecturer.getByLabel('Lecture file').setInputFiles({
       name: 'unreadable.pdf', mimeType: 'application/pdf', buffer: Buffer.from('This is not a PDF.'),
     })
@@ -176,7 +178,7 @@ test('complex PDF table preview and extracted text match across the classroom', 
     }
     expect(new Set(hashes).size).toBe(1)
     await lecturer.getByText('Extracted text', { exact: true }).click()
-    const extracted = await lecturer.locator('details p').textContent()
+    const extracted = await lecturer.locator('.viewer-extracted p').textContent()
     expect(extracted).toContain('Study | Adaptation Approach')
     expect(extracted).toContain('further discussion or teaching action.')
     expect(extracted).not.toMatch(/\n(?:There i|For ex|furthe)(?:\n|\s*\|)/)

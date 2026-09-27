@@ -35,13 +35,13 @@ export default function App() {
     setCredentials(null)
   }
   return <div className="min-h-screen">
-    <header className="border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 lg:px-8">
-        <span className="text-base font-semibold tracking-tight text-slate-900">Adaptive Classroom</span>
-        <span className="text-sm text-slate-500">{credentials ? credentials.role === 'lecturer' ? 'Lecturer view' : 'Student view' : 'Classroom sessions'}</span>
+    <header className={'site-header ' + (credentials ? 'sr-only' : '')}>
+      <div className="site-header-inner">
+        <div className="brand"><span className="brand-mark" aria-hidden="true">AC</span><span>Adaptive Classroom</span></div>
+        <span className="site-header-note">Classroom learning workspace</span>
       </div>
     </header>
-    <main className="mx-auto max-w-7xl px-5 py-8 lg:px-8 lg:py-10">
+    <main className={credentials ? 'session-main' : 'site-main'}>
       {credentials ? <LivePage credentials={credentials} onLeave={leave} /> : <HomePage onEnter={enter} previousStudent={lastStudent()} />}
     </main>
   </div>

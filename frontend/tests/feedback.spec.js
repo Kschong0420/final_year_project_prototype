@@ -17,9 +17,12 @@ test('feedback updates the lecturer live and follows each slide', async ({ brows
   try {
     await lecturer.goto('/')
     await lecturer.getByRole('button', { name: 'Create lecture session' }).click()
+    await lecturer.getByRole('tab', { name: 'Live class', exact: true }).click()
     await expect(lecturer.getByTestId('feedback-total')).toHaveText('0 responses submitted')
     await expect(lecturer.getByTestId('understand-count')).toContainText('0 · 0%')
     await expect(lecturer.getByTestId('not-understand-count')).toContainText('0 · 0%')
+    await expect(lecturer.getByTestId('feedback-split-bar')).toHaveCount(1)
+    await expect(lecturer.getByTestId('feedback-understand-segment')).toHaveAttribute('style', 'width: 0%;')
     const code = await lecturer.getByTestId('session-code').textContent()
 
     for (const student of [student1, student2]) {
@@ -43,6 +46,9 @@ test('feedback updates the lecturer live and follows each slide', async ({ brows
     await expect(lecturer.getByTestId('feedback-total')).toHaveText('2 responses submitted')
     await expect(lecturer.getByTestId('understand-count')).toContainText('1 · 50%')
     await expect(lecturer.getByTestId('not-understand-count')).toContainText('1 · 50%')
+    await expect(lecturer.getByTestId('feedback-understand-segment')).toHaveAttribute('style', 'width: 50%;')
+    await expect(lecturer.getByTestId('feedback-not-understand-segment')).toHaveAttribute('style', 'width: 50%;')
+    await expect(lecturer.getByTestId('feedback-split-bar')).toHaveAttribute('aria-label', '1 understand (50%); 1 do not understand (50%)')
     await expect(lecturer.getByTestId('confusion-status')).toContainText('Potential confusion')
     await expect(lecturer.getByTestId('flagged-slides')).toHaveText('1')
 

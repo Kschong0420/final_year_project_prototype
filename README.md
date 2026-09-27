@@ -17,6 +17,17 @@ The lecturer can prepare local AI-generated MCQs and fill-in-the-blank questions
 class, or request additional questions during class, then edit, approve and release individual questions.
 Students answer released questions; the lecturer sees aggregate responses.
 
+The interface follows a **lecture desk** flow: create a lecture, prepare its material and
+questions, teach with the live slide, then inspect responses. The home screen provides a
+separate, direct path for lecturers and students. The lecturer workspace shows the next
+relevant action based on uploaded material and question status, with a session-code copy
+control for sharing the class. Stage navigation remains available on narrow screens.
+
+The frontend uses **Prepare / Live class / Results** workspaces. The shared slide viewer
+supports Standard, Half-screen, Expanded and browser Full screen, with local 75–200% zoom.
+These are interface views, not new session states. No backend changes or Milestone 5 features
+are included. See [workspace and viewer verification](docs/ui-workspace-tests.md).
+
 This is a face-to-face classroom tool. It has no video, audio, screen sharing or recording.
 No AI explanations, attendance or database integration is implemented.
 
@@ -135,20 +146,52 @@ but students never receive unreleased questions. Joining does not change approva
 
 1. Create a lecture session in the lecturer window. Upload a PDF or PPTX before sharing the code.
 2. Preview the slides and extracted text. Under **Classroom activities**, choose a source slide.
-   Classroom slide changes automatically update this source selector. Selecting another source does not move the classroom slide.
+   Prepare shows a local preview of the selected source. Classroom slide changes automatically update
+   this source selector. Selecting another source never moves the students' classroom slide.
 3. Inspect the visible source text. Optionally add factual **Additional teaching notes**, including
    relevant adjacent-slide text labelled with its slide number. Choose Basic, Intermediate or Advanced.
 4. **Generate questions**, review and edit, **Save edits**, then **Approve** to save for later;
    discard unsuitable questions. An edit requires approval again. Nothing releases automatically.
-5. Start class by sharing the code. Open two independent student windows and join. Both show no
-   activities until the lecturer explicitly selects **Release to students** on an approved question.
+5. Select **Live class** and share the code. Open two independent student windows and join. Both show no
+   activities until the lecturer explicitly selects **Release activity** on an approved question in
+   the Activities panel (or **Release to students** in its review editor).
 6. Navigate the live presentation. Select any question source slide to retrieve its saved questions
    without generating again; the selector lists the approved count for each slide.
-7. Release a saved activity. Submit different answers in the two student windows and inspect live
-   submission totals. Submit understanding feedback and check the lecturer totals without refreshing.
+7. Release a saved activity. Submit different answers in the two student windows and inspect the
+   **Results** tab. Select an activity to see its live submission totals and responses. Submit
+   understanding feedback and check the lecturer sidebar without refreshing.
 8. Generate additional questions during class. While waiting, navigate slides, submit understanding
    feedback and answer an already released activity. New questions enter **Awaiting review** and must
    be edited as needed and approved before an explicit release, exactly as during preparation.
+
+The Live class sidebar keeps understanding feedback above **Activities / Generate / Review**.
+Secondary panels scroll independently on desktop. Prepare includes a collapsible upload/replace
+form and **Generate / Review** tabs; select a question summary to open one editor. Hidden editors
+remain mounted, preserving unsaved drafts across tabs and source changes. Teaching notes remain
+associated with their source slide until the presentation is replaced. A question with unsaved edits
+cannot be released through the compact Activities panel. Results shows existing aggregate counts,
+MCQ option distributions and fill-in answer frequencies, not grades or named student reports.
+
+### Slide viewing controls
+
+- **Standard:** slide and classroom sidebar; **Half-screen:** approximately equal columns on desktop.
+- **Expanded:** uses most of the app, with a Class controls toggle and a Return to standard view button.
+  Connection status and a lecturer feedback summary remain visible. Escape returns to Standard.
+- **Full screen:** enters the browser Fullscreen API from the viewer toolbar. The lecturer retains
+  Previous/Next in Live class; students never receive navigation controls. Exit Full Screen, Escape
+  or browser exit restores Standard. Unsupported or rejected requests fall back to Expanded with a message.
+- **− / +:** zoom in 25-point steps between 75% and 200%. **Reset** and **Fit** return to 100%,
+  where the complete image fits the available viewer. Fitting adapts to window/layout size. Larger
+  images scroll inside the viewer. Aspect ratio is preserved; zoom cannot recover missing source detail.
+- Mode and zoom belong to each browser only. Slide changes still synchronise to all students.
+  Zoom persists across slide changes; scroll position resets. Viewing settings reset on a page reload,
+  while existing temporary credentials restore server state. Text-only PPTX previews remain text,
+  with scalable text and scrolling rather than an invented original slide layout.
+
+On student mobile screens, use **Slide / Activities** tabs; understanding feedback identifies the
+current classroom slide and stays accessible in either view. Unsubmitted activity drafts survive tab
+and mode changes. All released questions remain available, including questions from earlier slides.
+Half-screen stacks its areas on narrow screens. No view change releases questions or resets responses.
 
 Generation requests run outside the session lock. Generation controls are unavailable while
 a request is running; review, slide controls and student interaction remain available. A replacement
@@ -171,7 +214,7 @@ under 10 seconds is claimed. See [Milestone 4.1 tests](docs/milestone-4.1-tests.
 
 1. On the lecturer browser, create a lecture session and note the displayed code.
 2. In two independent tabs or browser windows, select the student form and enter that code.
-3. Change slides as the lecturer. Both students follow automatically.
+3. Select **Live class** and change slides as the lecturer. Both students follow automatically.
 4. Join another student after changing slides; they receive the current slide.
 5. Refresh a student tab; its temporary credentials restore the current session.
 6. Briefly disconnect a student device, change slides, then reconnect it. The client retries
@@ -186,8 +229,9 @@ under 10 seconds is claimed. See [Milestone 4.1 tests](docs/milestone-4.1-tests.
 11. Refresh or reconnect a student window. Their choice for each slide is restored while the
     backend remains running. End the session from the lecturer interface.
 
-For Milestone 3, choose **Upload material** in the lecturer panel, select a PDF or PPTX, and
-submit it. Wait for the ready message. The new presentation starts at slide 1 in every connected
+For Milestone 3, choose **Upload material** in **Prepare**, select a PDF or PPTX, and
+submit it. Wait for the ready message. Use **Replace material** to reopen the form after an upload.
+The new presentation starts at slide 1 in every connected
 view. Uploading another file clears feedback from the previous presentation. Have two students
 respond on the uploaded slide, navigate and return to check slide-specific totals. Joining late
 or reconnecting with the same temporary credentials restores the current slide.

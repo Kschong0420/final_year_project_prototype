@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSessionSocket } from '../hooks/useSessionSocket'
 import SessionStatus from '../components/SessionStatus'
 import SlideViewer from '../components/SlideViewer'
@@ -6,76 +6,93 @@ import { LecturerFeedback, StudentFeedback } from '../components/UnderstandingFe
 import MaterialUpload from '../components/MaterialUpload'
 import LecturerActivities from '../components/LecturerActivities'
 import StudentActivities from '../components/StudentActivities'
+import WorkspaceTabs from '../components/WorkspaceTabs'
 
 export default function LivePage({ credentials, onLeave }) {
   const { state, connection, error, send, submitFeedback, feedbackAck, submitActivity, activityAck } = useSessionSocket(credentials)
   const [confirmEnd, setConfirmEnd] = useState(false)
+  const [area, setArea] = useState('prepare')
+  const [studentTab, setStudentTab] = useState('slide')
+  const [sourceIndex, setSourceIndex] = useState(0)
+  const [mode, setMode] = useState('standard')
+  const [controlsOpen, setControlsOpen] = useState(false)
+  const [requestedPanel, setRequestedPanel] = useState(null)
+  const [copyStatus, setCopyStatus] = useState('')
   const lecturer = credentials.role === 'lecturer'
   const active = connection === 'connected' && state?.status === 'active'
   const ended = state?.status === 'ended'
   const feedbackAvailable = state && (lecturer ? 'current_feedback' in state : 'my_feedback' in state)
+  useEffect(() => { setSourceIndex(state?.current_slide || 0) }, [state?.current_slide, state?.presentation_id])
+  const source = Math.min(sourceIndex, (state?.slides.length || 1) - 1)
+  const expanded = mode === 'expanded' && area !== 'results'
+  const activities = state?.activities || []
+  const pendingCount = activities.filter(item => item.status === 'pending').length
+  const approvedCount = activities.filter(item => item.status === 'approved').length
+  const releasedCount = activities.filter(item => item.status === 'released').length
+  const nextStep = !state?.active_material
+    ? { label: 'Add lecture material', detail: 'Upload a PDF or PPTX to prepare questions.', action: () => { setArea('prepare'); document.getElementById('material-file')?.focus() } }
+    : pendingCount ? { label: `Review ${pendingCount} question${pendingCount === 1 ? '' : 's'}`, detail: 'Approve or discard each question before students see it.', action: () => { setSourceIndex(activities.find(item => item.status === 'pending').slide_index); setArea(area === 'live' ? 'live' : 'prepare'); setRequestedPanel({ value: 'review' }) } }
+      : !activities.length || (!approvedCount && !releasedCount) ? { label: 'Generate questions', detail: area === 'live' ? 'Add questions without leaving the class.' : 'Choose a slide and create questions.', action: () => { setArea(area === 'live' ? 'live' : 'prepare'); setRequestedPanel({ value: 'generate' }) } }
+        : approvedCount ? area === 'live'
+          ? { label: 'Open saved activities', detail: `${approvedCount} approved question${approvedCount === 1 ? '' : 's'} ready for release.`, action: () => { setSourceIndex(activities.find(item => item.status === 'approved').slide_index); setRequestedPanel({ value: 'activities' }) } }
+          : { label: 'Go to live class', detail: `${approvedCount} approved question${approvedCount === 1 ? '' : 's'} saved for release during class.`, action: () => setArea('live') }
+          : { label: 'Review classroom results', detail: `${releasedCount} released question${releasedCount === 1 ? '' : 's'} available.`, action: () => setArea('results') }
+  async function copyCode() {
+    try { await navigator.clipboard.writeText(credentials.code); setCopyStatus('Code copied') }
+    catch { setCopyStatus('Select the code above to copy it') }
+  }
 
-  return <div className={lecturer ? '' : 'mx-auto max-w-4xl'}>
-    <div className="mb-7 flex flex-wrap items-start justify-between gap-5">
-      <div className="min-w-0">
-        <p className="eyebrow">{lecturer ? 'Lecturer · Preparation and classroom' : 'Student · Live session'}</p>
-        <h1 className="mt-2 break-words text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">{state?.title || 'Joining lecture…'}</h1>
-      </div>
-      <div className="session-code">
-        <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Session code</span>
-        <strong data-testid="session-code" className="block font-mono text-2xl font-semibold tracking-[0.15em] text-slate-900">{credentials.code}</strong>
-      </div>
+  return <div className={`classroom-shell ${lecturer ? 'lecturer-shell' : 'student-shell'} ${expanded ? 'cinematic' : ''}`}>
+    <header className="classroom-header">
+      <div className="min-w-0"><p className="eyebrow">{lecturer ? 'Lecture desk' : 'In class'}</p>
+        <h1 className="truncate text-xl font-semibold" title={state?.title}>{state?.title || 'Joining lecture…'}</h1></div>
+      <div className="code-cluster"><span className="code-label">Session code</span><strong data-testid="session-code" className="font-mono text-lg tracking-wider">{credentials.code}</strong>
+        {lecturer && <button className="code-copy" onClick={copyCode} aria-label="Copy session code">Copy</button>}
+        {copyStatus && <span role="status" className="code-copy-status">{copyStatus}</span>}</div>
+      {lecturer ? !ended && connection !== 'unavailable' && <button className="secondary text-red-700" disabled={!active} onClick={() => setConfirmEnd(true)}>End lecture session</button>
+        : <button className="secondary" onClick={() => onLeave({ forgetIdentity: ended || connection === 'unavailable' })}>{ended || connection === 'unavailable' ? 'Return home' : 'Leave session'}</button>}
+    </header>
+    <div className="connection-strip"><SessionStatus connection={connection} state={state} lecturer={lecturer} />
+      {expanded && lecturer && state?.current_feedback && <p className="mt-1 text-xs" aria-live="polite">Slide {state.current_slide + 1}: {state.current_feedback.total} responses · {Math.round(state.current_feedback.not_understand_percent)}% Not Understand{state.current_feedback.flagged ? ' · Potential confusion' : ''}</p>}
     </div>
-
-    <div className="mb-6 border-y border-slate-200 py-3">
-      <SessionStatus connection={connection} state={state} lecturer={lecturer} />
-    </div>
-
-    {error && <p role="alert" className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p>}
-    {!active && !ended && connection !== 'unavailable' && <p role="status" className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">Waiting for the live connection. The displayed slide may be out of date until it reconnects.</p>}
-    {active && !lecturer && !state.lecturer_connected && <p role="status" className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">The lecturer is disconnected. The slide will update when they return.</p>}
-    {ended && <p role="status" className="mb-5 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm">This lecture session has ended.</p>}
-    {active && !feedbackAvailable && <p role="alert" className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">Understanding feedback needs the updated backend. Restart the backend to use it.</p>}
-
-    <div className={lecturer ? 'grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px]' : ''}>
-      <div className="min-w-0">
-        {state ? <SlideViewer state={state} token={credentials.token} /> : <div className="slide-surface flex min-h-72 items-center text-slate-500">Loading the current slide…</div>}
-
-        {lecturer && state && !ended && <section className="mt-4 flex flex-wrap items-center gap-3" aria-label="Slide controls">
-          <button className="secondary min-w-36" disabled={!active || state.current_slide === 0} onClick={() => send({ type: 'set_slide', index: state.current_slide - 1 })}>Previous slide</button>
-          <button className="primary min-w-36" disabled={!active || state.current_slide === state.slides.length - 1} onClick={() => send({ type: 'set_slide', index: state.current_slide + 1 })}>Next slide</button>
-          <p className="w-full text-sm text-slate-500">Slide changes appear on connected student devices.</p>
-        </section>}
-
-        {!lecturer && feedbackAvailable && !ended && <StudentFeedback state={state} active={active} submitFeedback={submitFeedback} feedbackAck={feedbackAck} />}
-        {!lecturer && state && !ended && <StudentActivities state={state} active={active} submitActivity={submitActivity} activityAck={activityAck} />}
-        {lecturer && state && !ended && <LecturerActivities state={state} credentials={credentials} active={active} />}
-        {!lecturer && !ended && <p className="mt-4 text-sm text-slate-600">The lecturer controls the slides. This view updates automatically.</p>}
-      </div>
-
-      {lecturer && <aside className="space-y-4">
-        {!ended && <MaterialUpload credentials={credentials} active={active} material={state?.active_material} />}
-        {feedbackAvailable && <LecturerFeedback state={state} />}
-        <section className="panel" aria-labelledby="session-actions-title">
-          <h2 id="session-actions-title" className="text-base font-semibold">Session</h2>
-          <p className="mt-1 text-sm leading-6 text-slate-600">Prepare lecture: upload material, review questions and approve them to save for later.</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Start class: share the code above. Prepared questions stay saved until you choose Release to students. Additional generation remains available during class.</p>
-          <p className="mt-2 text-xs text-amber-800">Temporary storage: restarting the backend loses prepared questions and review records.</p>
-          {!ended && connection !== 'unavailable' && <div className="mt-5">
-            {!confirmEnd ? <button className="secondary w-full text-red-700" disabled={!active} onClick={() => setConfirmEnd(true)}>End lecture session</button> : <div className="space-y-3">
-              <p className="text-sm text-slate-700">End this session for everyone?</p>
-              <button className="danger w-full" disabled={!active} onClick={() => { send({ type: 'end_session' }); setConfirmEnd(false) }}>Confirm end</button>
-              <button className="secondary w-full" onClick={() => setConfirmEnd(false)}>Cancel</button>
-            </div>}
-          </div>}
-          {!ended && connection !== 'unavailable' && <p className="mt-4 text-xs leading-5 text-slate-500">Keep this tab open during the lecture. Refreshing restores the session.</p>}
-          {(ended || connection === 'unavailable') && <button className="secondary mt-5 w-full" onClick={onLeave}>Return home</button>}
-        </section>
-      </aside>}
-    </div>
-
-    {!lecturer && <div className="mt-7 border-t border-slate-200 pt-5">
-      <button className="secondary w-full sm:w-auto" onClick={() => onLeave({ forgetIdentity: ended || connection === 'unavailable' })}>{ended || connection === 'unavailable' ? 'Return home' : 'Leave session'}</button>
+    {error && <p role="alert" className="workspace-alert">{error}</p>}
+    {!active && !ended && connection !== 'unavailable' && <p role="status" className="workspace-alert">Waiting for the live connection. The displayed slide may be out of date until it reconnects.</p>}
+    {active && !lecturer && !state.lecturer_connected && <p role="status" className="workspace-alert">The lecturer is disconnected. The slide will update when they return.</p>}
+    {ended && <p role="status" className="workspace-alert">This lecture session has ended.</p>}
+    {active && !feedbackAvailable && <p role="alert" className="workspace-alert">Understanding feedback needs the updated backend. Restart the backend to use it.</p>}
+    {lecturer && (ended || connection === 'unavailable') && <button className="secondary" onClick={onLeave}>Return home</button>}
+    {confirmEnd && <div className="workspace-alert" role="alert">
+      <p>End this session for everyone?</p><button className="danger" disabled={!active} onClick={() => { send({ type: 'end_session' }); setConfirmEnd(false) }}>Confirm end</button>
+      <button className="secondary ml-2" onClick={() => setConfirmEnd(false)}>Cancel</button>
     </div>}
+    <div className="session-stage">
+    <div className="main-workspace-tabs" hidden={expanded}>
+      {lecturer ? <><p className="stage-rail-title">YOUR LECTURE</p><WorkspaceTabs label="Lecturer workspace" stages value={area} onChange={setArea} items={[
+        { value: 'prepare', label: 'Prepare', description: 'Material & questions' }, { value: 'live', label: 'Live class', description: 'Slides & responses' }, { value: 'results', label: 'Results', description: 'Activity answers' },
+      ]} /><div className="stage-next" aria-live="polite"><span>UP NEXT</span><strong>{nextStep.label}</strong><p>{nextStep.detail}</p><button className="stage-next-action" aria-label={`Go to ${nextStep.label}`} onClick={nextStep.action}>{nextStep.label} <span aria-hidden="true">→</span></button></div></> : <div className="student-mobile-tabs"><WorkspaceTabs label="Student workspace" value={studentTab} onChange={setStudentTab} items={[
+        { value: 'slide', label: 'Slide' }, { value: 'activities', label: `Activities (${state?.released_activities?.length || 0})` },
+      ]} /></div>}
+    </div>
+    {state ? <div className={`workspace-grid mode-${mode} ${lecturer ? area : 'student'} ${controlsOpen ? 'controls-open' : ''} student-tab-${studentTab}`}>
+      <div className="workspace-slide" hidden={lecturer && area === 'results'}>
+        <SlideViewer state={state} token={credentials.token} slideIndex={lecturer && area === 'prepare' ? source : state.current_slide}
+          preview={lecturer && area === 'prepare'} lecturer={lecturer} active={active} send={send}
+          mode={mode} onModeChange={setMode} controlsOpen={controlsOpen} onToggleControls={() => setControlsOpen(value => !value)} />
+      </div>
+      <aside className="workspace-side">
+        {lecturer ? <>
+          <div hidden={area !== 'prepare'} className="material-area"><MaterialUpload credentials={credentials} active={active} material={state.active_material} /></div>
+          <div hidden={area === 'prepare'} className="live-feedback">{feedbackAvailable && <LecturerFeedback state={state} />}</div>
+          <div className="workspace-tools"><LecturerActivities key={state.presentation_id} state={state} credentials={credentials} active={active}
+            area={area} slideIndex={source} onSourceChange={setSourceIndex} requestedPanel={requestedPanel} /></div>
+        </> : <>
+          <div className="student-feedback">{feedbackAvailable && !ended && <StudentFeedback state={state} active={active} submitFeedback={submitFeedback} feedbackAck={feedbackAck} />}</div>
+          <div className="student-activities"><StudentActivities state={state} active={active} submitActivity={submitActivity} activityAck={activityAck} /></div>
+          <p className="sr-only" aria-live="polite">{state.released_activities?.length || 0} released activities available.</p>
+        </>}
+      </aside>
+    </div> : <p role="status" className="panel">Loading classroom…</p>}
+    {lecturer && area === 'prepare' && !expanded && <p className="workspace-footnote">When ready, share the session code. Approved questions appear to students only after you release them.</p>}
+    </div>
   </div>
 }

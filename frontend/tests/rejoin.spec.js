@@ -14,6 +14,7 @@ test('same student rejoins without a third count; new student remains independen
   try {
     await lecturer.goto('/')
     await lecturer.getByRole('button', { name: 'Create lecture session' }).click()
+    await lecturer.getByRole('tab', { name: 'Live class', exact: true }).click()
     await expect(lecturer.getByTestId('connection-status')).toHaveText('Connection: connected')
     const code = await lecturer.getByTestId('session-code').textContent()
 

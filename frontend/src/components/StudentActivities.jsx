@@ -52,8 +52,7 @@ function StudentQuestion({ activity, active, submitActivity, activityAck }) {
 export default function StudentActivities({ state, active, submitActivity, activityAck }) {
   const activities = state.released_activities || []
   return <section className="panel mt-5" aria-labelledby="student-activities-title">
-    <h2 id="student-activities-title" className="text-base font-semibold">Classroom activities</h2>
-    <p className="mt-1 text-sm leading-6 text-slate-600">Questions appear here after the lecturer releases them.</p>
+    <h2 id="student-activities-title" className="text-base font-semibold">Activities</h2>
     <div className="mt-4 space-y-4">
       {activities.length ? activities.map(activity => <StudentQuestion key={activity.id} activity={activity} active={active}
         submitActivity={submitActivity} activityAck={activityAck} />) : <p className="text-sm text-slate-600">No activities released yet.</p>}

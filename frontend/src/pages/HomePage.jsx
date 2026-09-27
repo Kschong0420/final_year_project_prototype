@@ -22,39 +22,34 @@ export default function HomePage({ onEnter, previousStudent }) {
     finally { setBusy('') }
   }
 
-  return <div className="mx-auto max-w-5xl">
-    <div className="mb-8 border-b border-slate-200 pb-7">
-      <p className="eyebrow">Lecture sessions</p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Start or join a lecture</h1>
-      <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">Students see the lecturer's current slide on their own device.</p>
+  return <div className="entry-page">
+    <div className="entry-heading">
+      <p className="eyebrow">University classroom workspace</p>
+      <h1>Prepare or join a lecture.</h1>
+      <p>Lecturers control the slides and questions. Students follow and respond on their own device.</p>
     </div>
-
-    {error && <p role="alert" className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p>}
-
-    <div className="grid gap-5 md:grid-cols-2">
-      <form className="panel order-2 flex flex-col md:order-1" onSubmit={event => submit(event, 'lecturer')}>
-        <div className="mb-7">
-          <p className="eyebrow">For lecturers</p>
-          <h2 className="mt-2 text-xl font-semibold">Prepare lecture</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Create a session, upload material and save approved questions before students join. Share the code when you are ready to start class.</p>
-        </div>
+    {error && <p role="alert" className="entry-error">{error}</p>}
+    <div className="entry-grid">
+      <form className="entry-card lecturer-entry" onSubmit={event => submit(event, 'lecturer')}>
+        <div className="entry-card-top"><span className="entry-symbol" aria-hidden="true">01</span><span>For lecturers</span></div>
+        <h2>Prepare a lecture</h2>
+        <p className="entry-summary">Add your material and save questions. Share the code when you are ready to teach.</p>
         <label className="field-label" htmlFor="title">Lecture title</label>
         <input id="title" value={title} onChange={event => setTitle(event.target.value)} maxLength={120} required />
-        <button className="primary mt-6 w-full sm:w-auto sm:self-start" disabled={!!busy || !title.trim()}>{busy === 'lecturer' ? 'Creating session…' : 'Create lecture session'}</button>
+        <button className="primary entry-action" disabled={!!busy || !title.trim()}>{busy === 'lecturer' ? 'Creating session…' : 'Create lecture session'} <span aria-hidden="true">→</span></button>
+        <div className="entry-steps" aria-label="Lecturer steps"><span>1. Upload slides</span><span>2. Prepare questions</span><span>3. Teach</span></div>
       </form>
-
-      <form className="panel order-1 flex flex-col md:order-2" onSubmit={event => submit(event, 'student')}>
-        <div className="mb-7">
-          <p className="eyebrow">For students</p>
-          <h2 className="mt-2 text-xl font-semibold">Join a session</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Enter the six-character code provided by your lecturer.</p>
-        </div>
+      <form className="entry-card student-entry" onSubmit={event => submit(event, 'student')}>
+        <div className="entry-card-top"><span className="entry-symbol" aria-hidden="true">02</span><span>For students</span></div>
+        <h2>Join your class</h2>
+        <p className="entry-summary">Enter the code from your lecturer to see the current slide and take part.</p>
         <label className="field-label" htmlFor="code">Session code</label>
-        <input id="code" className="max-w-52 uppercase tracking-[0.18em]" value={code} onChange={event => setCode(event.target.value.toUpperCase())} maxLength={6} minLength={6} autoCapitalize="characters" autoComplete="off" spellCheck="false" required placeholder="ABC234" />
-        <button className="primary mt-6 w-full sm:w-auto sm:self-start" disabled={!!busy || code.trim().length !== 6}>{busy === 'student' ? 'Joining session…' : 'Join lecture session'}</button>
+        <input id="code" className="session-code-input" value={code} onChange={event => setCode(event.target.value.toUpperCase())}
+          maxLength={6} minLength={6} autoCapitalize="characters" autoComplete="off" spellCheck="false" required placeholder="ABC234" />
+        <button className="secondary entry-action" disabled={!!busy || code.trim().length !== 6}>{busy === 'student' ? 'Joining session…' : 'Join lecture session'} <span aria-hidden="true">→</span></button>
+        <div className="entry-steps" aria-label="Student steps"><span>Follow slides</span><span>Give feedback</span><span>Answer activities</span></div>
       </form>
     </div>
-
-    <p className="mt-6 text-xs leading-5 text-slate-500">Prototype access: role selection does not verify identity. Session data is temporary.</p>
+    <p className="entry-footnote">This prototype uses temporary session access. Closing the backend clears the class and prepared questions.</p>
   </div>
 }
