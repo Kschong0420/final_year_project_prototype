@@ -49,3 +49,20 @@ export async function activityRequest(code, token, path, method = 'POST', body) 
   if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'The activity request failed.')
   return data
 }
+
+export async function adaptiveRequest(credentials, path, method = 'POST', body) {
+  let response
+  try {
+    response = await fetch(`/api/sessions/${encodeURIComponent(credentials.code)}${path}`, {
+      method, headers: { Authorization: `Bearer ${credentials.token}`, 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: AbortSignal.timeout(path.endsWith('/generate') ? 190000 : 15000),
+    })
+  } catch {
+    throw new Error('Could not confirm the request. Check the connection. It may have reached the server; check the latest state before retrying.')
+  }
+  let data
+  try { data = await response.json() } catch { throw new Error('The backend returned an unreadable response. Check the latest state before retrying.') }
+  if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Check the text length and selected slide, then try again.')
+  return data
+}

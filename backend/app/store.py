@@ -1,10 +1,11 @@
 import asyncio
 import secrets
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from fastapi import HTTPException, WebSocket
 from .slides import SLIDES
 from .feedback import ConfusionRules, summarise
 from .activities import Activity
+from .adaptive import Explanation, AnonymousQuestion
 
 
 @dataclass
@@ -25,6 +26,9 @@ class Session:
     upload_in_progress: bool = False
     activities: dict[str, Activity] = field(default_factory=dict)
     activity_generation_in_progress: bool = False
+    explanations: dict[str, Explanation] = field(default_factory=dict)
+    explanation_generation_in_progress: bool = False
+    anonymous_questions: list[AnonymousQuestion] = field(default_factory=list)
 
     def snapshot(self, role, token):
         state = {
@@ -37,6 +41,9 @@ class Session:
             "lecturer_connected": any(role == "lecturer" for role, _ in self.connections.values()),
         }
         if role == "lecturer":
+            state["explanations"] = [item.lecturer_view() for item in self.explanations.values()]
+            state["explanation_generation_in_progress"] = self.explanation_generation_in_progress
+            state["anonymous_questions"] = [asdict(item) for item in self.anonymous_questions]
             state["activities"] = [activity.lecturer_view() for activity in self.activities.values()]
             state["activity_generation_in_progress"] = self.activity_generation_in_progress
             state["current_feedback"] = summarise(
@@ -51,6 +58,7 @@ class Session:
                 "min_responses": self.confusion_rules.min_responses,
             }
         else:
+            state["shared_explanations"] = [item.student_view() for item in self.explanations.values() if item.status == "shared"]
             state["my_feedback"] = self.feedback.get(self.current_slide, {}).get(token)
             state["released_activities"] = [activity.student_view(token) for activity in self.activities.values()
                                             if activity.status == "released"]

@@ -1,4 +1,4 @@
-# Adaptive Classroom — Milestones 1–4.1
+# Adaptive Classroom — Milestones 1–5
 
 A local classroom presentation prototype for the FYP **AI-Based Adaptive Interactive Learning Platform for Real-Time Classroom Engagement**.
 
@@ -16,6 +16,8 @@ Without LibreOffice, PPTX slides use a clearly labelled text view.
 The lecturer can prepare local AI-generated MCQs and fill-in-the-blank questions before
 class, or request additional questions during class, then edit, approve and release individual questions.
 Students answer released questions; the lecturer sees aggregate responses.
+Lecturers can also request a simplified AI explanation, review/edit it, approve it and explicitly
+share it. Students can send anonymous text questions to the lecturer, grouped by slide.
 
 The interface follows a **lecture desk** flow: create a lecture, prepare its material and
 questions, teach with the live slide, then inspect responses. The home screen provides a
@@ -25,17 +27,17 @@ control for sharing the class. Stage navigation remains available on narrow scre
 
 The frontend uses **Prepare / Live class / Results** workspaces. The shared slide viewer
 supports Standard, Half-screen, Expanded and browser Full screen, with local 75–200% zoom.
-These are interface views, not new session states. No backend changes or Milestone 5 features
-are included. See [workspace and viewer verification](docs/ui-workspace-tests.md).
+These are interface views, not new session states. See
+[workspace and viewer verification](docs/ui-workspace-tests.md) and [Milestone 5 validation](docs/milestone-5-tests.md).
 
 This is a face-to-face classroom tool. It has no video, audio, screen sharing or recording.
-No AI explanations, attendance or database integration is implemented.
+Attendance and database integration are not implemented.
 
 ## Run on Windows (PowerShell)
 
 Prerequisites: Node.js 20.19+ or 22.12+ and Python 3.12 (or uv, which can install Python).
 
-For Milestone 4 question generation, install [Ollama for Windows](https://ollama.com/download/windows)
+For question and explanation generation, install [Ollama for Windows](https://ollama.com/download/windows)
 if it is missing, then open a PowerShell terminal and download the initial pretrained model:
 
 ```powershell
@@ -188,7 +190,7 @@ MCQ option distributions and fill-in answer frequencies, not grades or named stu
   while existing temporary credentials restore server state. Text-only PPTX previews remain text,
   with scalable text and scrolling rather than an invented original slide layout.
 
-On student mobile screens, use **Slide / Activities** tabs; understanding feedback identifies the
+On student mobile screens, use **Slide / Class tools** tabs; understanding feedback identifies the
 current classroom slide and stays accessible in either view. Unsubmitted activity drafts survive tab
 and mode changes. All released questions remain available, including questions from earlier slides.
 Half-screen stacks its areas on narrow screens. No view change releases questions or resets responses.
@@ -252,7 +254,60 @@ the app reuses that tab's temporary student token. Their earlier choice remains 
 The student view shows **Response saved** only after the backend acknowledges a submission.
 While disconnected, the feedback buttons are disabled and the view says feedback cannot be sent.
 
-A confusion flag only informs the lecturer. It does not request or generate an AI explanation.
+A confusion flag only informs the lecturer. It never requests or generates an AI explanation automatically.
+
+### Milestone 5: lecturer-requested explanations and anonymous questions
+
+The default confusion rule remains at least two submitted responses and at least 50% Not
+Understand. Green/red portions of the shared bar show the proportions among respondents, not
+the whole class. This is self-reported understanding, not a diagnosis of misunderstanding.
+
+In **Live class**, select **Explain this slide**, or open **Explanations** and select any source
+slide (including an unflagged slide). Source selection does not move the live presentation.
+Inspect **Explanation source text**, then explicitly click **Generate explanation**. The model
+uses only that slide's extracted text; activity teaching notes are not included. Empty, very
+short, excessively long or heavily fragmented sources are rejected. Headings-only content is
+also rejected when the model reports insufficient information. These are conservative checks,
+not a guarantee of complete extraction or factual grounding.
+
+The explanation starts in **Awaiting review** and is private to the lecturer. Read it, edit if
+needed, **Save explanation edits**, then **Approve explanation** and **Share explanation**.
+Approval alone does not publish. Unsaved edits disable approval/sharing; a saved edit requires
+fresh approval. **Discard explanation** keeps a private record. Shared/discarded versions are
+final; a new explanation can be generated. Original output, source text and quote, slide index,
+model name, generation duration and review actions are retained separately in memory.
+
+Students receive shared explanations through the existing WebSocket state without refreshing.
+Open **Explanations (N)** under class tools. Explanations remain labelled with their source slide
+when the lecturer moves on, and are available to late joiners and reconnecting students. New
+explanations never change the current slide or anyone's local viewing mode. The tab count and
+screen-reader announcement indicate newly available content; the app does not force a tab switch.
+
+Students use **Ask a question**, enter up to 1,000 characters and select **Send question
+anonymously**. On mobile, open **Class tools** first. The lecturer's **Questions (N)** panel updates
+in real time, grouped by slide. Only authenticated temporary student credentials can submit,
+but each stored record contains only a random question ID, session code, presentation ID, slide
+index and text: no student token, student ID, IP or author reference. Other students do not
+receive these questions. Text may still identify its author if they put personal details in it.
+The app does not log question bodies or authorization headers; ordinary server access logs can
+still contain network addresses. This is anonymity in the lecturer view and question record,
+not a claim of network-level anonymity.
+
+Draft questions stay with their slide in the current browser. A submission for a stale slide or
+presentation is rejected. There are no automatic submission retries; a lost HTTP acknowledgement
+can leave uncertainty about delivery. Check with the lecturer before resending to avoid duplicates.
+
+Generation uses the existing `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, `AI_TIMEOUT_SECONDS`,
+`AI_TEMPERATURE` and `AI_NUM_PREDICT` settings. No new dependency or model training is required.
+Ollama calls run outside the classroom lock, so slides, feedback and activity answers remain
+available during generation. Failures show an error and require an explicit retry. Replacing the
+presentation clears its explanations/questions, and late AI results for the old presentation are
+rejected. Backend restart loses all of these records along with the existing temporary session.
+
+The real Phi-3 Mini smoke test initially produced unsupported additions; a shorter prompt improved
+the inspected response. Source-quote and topic checks cannot prove semantic grounding. Lecturer
+review remains essential. These few runs do not establish learning improvement, overall model
+quality or a reliable latency target. See [real model records](docs/milestone-5-real-model.json).
 
 For separate physical devices, use http://YOUR-PC-LAN-IP:5173 on the same local network.
 The frontend binds to 0.0.0.0. Allow Node on your private-network firewall if prompted.
@@ -301,6 +356,8 @@ docs/milestone-4-tests.md for results.
 - backend/app/reading_order.py: conservative column-aware ordering and nearby numbered-label grouping
 - backend/app/ai_generation.py: configurable local Ollama client, question prompt and validation
 - backend/app/activities.py: lecturer review, release and aggregate activity results
+- backend/app/adaptive.py: explanation review/sharing and anonymous-question records/routes
+- backend/app/explanation_generation.py: explanation prompt, source checks and response parsing
 - frontend/src/pages: home, lecturer and student views (LivePage renders role-specific controls)
 - frontend/src/hooks/useSessionSocket.js: connection lifecycle, retry and heartbeat
 - frontend/src/components/SlideViewer.jsx: presentation display
@@ -308,6 +365,8 @@ docs/milestone-4-tests.md for results.
 - frontend/src/components/UnderstandingFeedback.jsx: student choice and lecturer aggregate view
 - frontend/src/components/LecturerActivities.jsx: extracted-text review and question approval
 - frontend/src/components/StudentActivities.jsx: released questions and confirmed submissions
+- frontend/src/components/LecturerExplanations.jsx: private explanation generation, editing and review
+- frontend/src/components/AnonymousQuestions.jsx: anonymous question form/list and shared explanations
 - frontend/src/services/api.js: HTTP requests and errors
 
 The server is authoritative: clients receive current state on connection, slide change and feedback.
@@ -367,8 +426,9 @@ WebSocket snapshots omit correct answers and all pending, approved and discarded
   question before release. Image-only slides and some complex PPTX/PDF layouts have incomplete
   extracted text; OCR is not included. The acceptance and generation-time FYP targets have not
   yet been measured with the real model.
-- Questions, edits, review decisions and student answers are in memory and disappear on backend
+- Questions, explanations, anonymous submissions, edits, review decisions and student answers are in memory and disappear on backend
   restart. Replacing the active presentation clears them. This prototype has no persistent
   evaluation dataset, MySQL, legacy `.ppt` conversion or secure accounts.
-- Confusion detection is rule-based and classroom-wide. Explanations remain a future,
-  lecturer-requested feature. Model training/fine-tuning is outside scope.
+- Confusion detection is rule-based and classroom-wide. Explanations require an explicit lecturer
+  request, review, approval and sharing. No diagnosis or learning improvement is inferred.
+  Model training/fine-tuning is outside scope.

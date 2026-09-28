@@ -33,7 +33,7 @@ test('lecturer PDF upload appears for two students and resets previous feedback'
   for (const page of [lecturer, studentA, studentB]) page.on('pageerror', error => browserErrors.push(error.message))
   const aiRequests = []
   lecturer.on('request', request => {
-    if (/ollama|explanation|generate|questions/i.test(request.url())) aiRequests.push(request.url())
+    if (new URL(request.url()).pathname.startsWith('/api/') && /ollama|explanation|generate|questions/i.test(request.url())) aiRequests.push(request.url())
   })
   try {
     await lecturer.goto('/')

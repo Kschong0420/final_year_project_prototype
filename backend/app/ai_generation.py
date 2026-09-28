@@ -7,6 +7,7 @@ from typing import Literal
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from .explanation_generation import explanation_prompt, parse_explanation, source_error
 
 
 class AIError(Exception):
@@ -166,6 +167,22 @@ class OllamaClient:
             raise AIError(f"Ollama is running, but model '{self.model}' is unavailable. Run 'ollama pull {self.model}'.", 503)
         return {"model": self.model, "available": True}
 
+    async def explain(self, source, slide_number):
+        problem = source_error(source)
+        if problem:
+            raise AIError(problem, 422)
+        started = time.monotonic()
+        await self.status()
+        raw = await self._request(explanation_prompt(source, slide_number), "an explanation")
+        try:
+            explanation, quote = parse_explanation(raw)
+        except ValueError as exc:
+            raise AIError(str(exc)) from exc
+        if (" ".join(quote.split()) not in " ".join(source.split()) or
+                not (_topic_terms(explanation) & _topic_terms(source))):
+            raise AIError("Ollama returned an explanation without valid source support. Nothing was saved; review the source and retry.")
+        return explanation, quote, round(time.monotonic() - started, 2), self.model
+
     async def generate(self, source, slide_number, difficulty="basic", teaching_notes=""):
         levels = {
             "basic": "Recall and straightforward understanding.",
@@ -195,6 +212,13 @@ class OllamaClient:
             f"Selected slide {slide_number} source text:\n<slide>\n{source}\n</slide>\n"
             f"Additional teaching notes:\n<teaching_notes>\n{teaching_notes}\n</teaching_notes>"
         )
+        raw = await self._request(prompt, "questions")
+        questions, warnings = parse_questions(raw, source + "\n" + teaching_notes, self.mcq_count, self.blank_count)
+        if difficulty != "basic":
+            warnings.append("Requested difficulty is not a verified rating. Limited source content may support only basic questions; check during review.")
+        return questions, warnings, round(time.monotonic() - started, 2), self.model
+
+    async def _request(self, prompt, task):
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(f"{self.base_url}/api/generate", json={
@@ -210,8 +234,5 @@ class OllamaClient:
         except httpx.RequestError as exc:
             raise AIError("Cannot reach Ollama. Check that the local service is running.", 503) from exc
         except (httpx.HTTPStatusError, ValueError, AttributeError) as exc:
-            raise AIError("Ollama could not generate questions. Check its logs and try again.") from exc
-        questions, warnings = parse_questions(raw, source + "\n" + teaching_notes, self.mcq_count, self.blank_count)
-        if difficulty != "basic":
-            warnings.append("Requested difficulty is not a verified rating. Limited source content may support only basic questions; check during review.")
-        return questions, warnings, round(time.monotonic() - started, 2), self.model
+            raise AIError(f"Ollama could not generate {task}. Check its logs and try again.") from exc
+        return raw

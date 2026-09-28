@@ -7,6 +7,8 @@ import MaterialUpload from '../components/MaterialUpload'
 import LecturerActivities from '../components/LecturerActivities'
 import StudentActivities from '../components/StudentActivities'
 import WorkspaceTabs from '../components/WorkspaceTabs'
+import LecturerExplanations from '../components/LecturerExplanations'
+import { LecturerQuestions, StudentQuestion, SharedExplanations } from '../components/AnonymousQuestions'
 
 export default function LivePage({ credentials, onLeave }) {
   const { state, connection, error, send, submitFeedback, feedbackAck, submitActivity, activityAck } = useSessionSocket(credentials)
@@ -18,11 +20,14 @@ export default function LivePage({ credentials, onLeave }) {
   const [controlsOpen, setControlsOpen] = useState(false)
   const [requestedPanel, setRequestedPanel] = useState(null)
   const [copyStatus, setCopyStatus] = useState('')
+  const [liveTool, setLiveTool] = useState('activities')
+  const [studentTool, setStudentTool] = useState('activities')
   const lecturer = credentials.role === 'lecturer'
   const active = connection === 'connected' && state?.status === 'active'
   const ended = state?.status === 'ended'
   const feedbackAvailable = state && (lecturer ? 'current_feedback' in state : 'my_feedback' in state)
   useEffect(() => { setSourceIndex(state?.current_slide || 0) }, [state?.current_slide, state?.presentation_id])
+  useEffect(() => { if (requestedPanel) setLiveTool('activities') }, [requestedPanel])
   const source = Math.min(sourceIndex, (state?.slides.length || 1) - 1)
   const expanded = mode === 'expanded' && area !== 'results'
   const activities = state?.activities || []
@@ -70,7 +75,7 @@ export default function LivePage({ credentials, onLeave }) {
       {lecturer ? <><p className="stage-rail-title">YOUR LECTURE</p><WorkspaceTabs label="Lecturer workspace" stages value={area} onChange={setArea} items={[
         { value: 'prepare', label: 'Prepare', description: 'Material & questions' }, { value: 'live', label: 'Live class', description: 'Slides & responses' }, { value: 'results', label: 'Results', description: 'Activity answers' },
       ]} /><div className="stage-next" aria-live="polite"><span>UP NEXT</span><strong>{nextStep.label}</strong><p>{nextStep.detail}</p><button className="stage-next-action" aria-label={`Go to ${nextStep.label}`} onClick={nextStep.action}>{nextStep.label} <span aria-hidden="true">→</span></button></div></> : <div className="student-mobile-tabs"><WorkspaceTabs label="Student workspace" value={studentTab} onChange={setStudentTab} items={[
-        { value: 'slide', label: 'Slide' }, { value: 'activities', label: `Activities (${state?.released_activities?.length || 0})` },
+        { value: 'slide', label: 'Slide' }, { value: 'activities', label: `Class tools (${(state?.released_activities?.length || 0) + (state?.shared_explanations?.length || 0)})` },
       ]} /></div>}
     </div>
     {state ? <div className={`workspace-grid mode-${mode} ${lecturer ? area : 'student'} ${controlsOpen ? 'controls-open' : ''} student-tab-${studentTab}`}>
@@ -82,13 +87,31 @@ export default function LivePage({ credentials, onLeave }) {
       <aside className="workspace-side">
         {lecturer ? <>
           <div hidden={area !== 'prepare'} className="material-area"><MaterialUpload credentials={credentials} active={active} material={state.active_material} /></div>
-          <div hidden={area === 'prepare'} className="live-feedback">{feedbackAvailable && <LecturerFeedback state={state} />}</div>
-          <div className="workspace-tools"><LecturerActivities key={state.presentation_id} state={state} credentials={credentials} active={active}
-            area={area} slideIndex={source} onSourceChange={setSourceIndex} requestedPanel={requestedPanel} /></div>
+          <div hidden={area === 'prepare'} className="live-feedback">{feedbackAvailable && <LecturerFeedback state={state}
+            onExplain={() => { setArea('live'); setSourceIndex(state.current_slide); setLiveTool('explanations') }} />}</div>
+          <div hidden={area !== 'live'} className="adaptive-tools"><WorkspaceTabs label="Live tools" value={liveTool} onChange={setLiveTool} items={[
+            { value: 'activities', label: 'Activities & review' }, { value: 'explanations', label: 'Explanations' },
+            { value: 'questions', label: `Questions (${state.anonymous_questions?.length || 0})` },
+          ]} /></div>
+          <div className="workspace-tools">
+            <div hidden={area === 'live' && liveTool !== 'activities'}><LecturerActivities key={state.presentation_id} state={state} credentials={credentials} active={active}
+              area={area} slideIndex={source} onSourceChange={setSourceIndex} requestedPanel={requestedPanel} /></div>
+            <div hidden={area !== 'live' || liveTool !== 'explanations'}><LecturerExplanations key={state.presentation_id} state={state} credentials={credentials} active={active}
+              slideIndex={source} onSourceChange={setSourceIndex} /></div>
+            <div hidden={area !== 'live' || liveTool !== 'questions'}><LecturerQuestions state={state} /></div>
+          </div>
         </> : <>
           <div className="student-feedback">{feedbackAvailable && !ended && <StudentFeedback state={state} active={active} submitFeedback={submitFeedback} feedbackAck={feedbackAck} />}</div>
-          <div className="student-activities"><StudentActivities state={state} active={active} submitActivity={submitActivity} activityAck={activityAck} /></div>
-          <p className="sr-only" aria-live="polite">{state.released_activities?.length || 0} released activities available.</p>
+          <div className="student-activities">
+            <div className="adaptive-tools"><WorkspaceTabs label="Student class tools" value={studentTool} onChange={setStudentTool} items={[
+              { value: 'activities', label: 'Activities' }, { value: 'explanations', label: `Explanations (${state.shared_explanations?.length || 0})` },
+              { value: 'questions', label: 'Ask a question' },
+            ]} /></div>
+            <div hidden={studentTool !== 'activities'}><StudentActivities state={state} active={active} submitActivity={submitActivity} activityAck={activityAck} /></div>
+            <div hidden={studentTool !== 'explanations'}><SharedExplanations state={state} /></div>
+            <div hidden={studentTool !== 'questions'}><StudentQuestion key={state.presentation_id} state={state} credentials={credentials} active={active} /></div>
+          </div>
+          <p className="sr-only" aria-live="polite">{state.released_activities?.length || 0} released activities and {state.shared_explanations?.length || 0} shared explanations available.</p>
         </>}
       </aside>
     </div> : <p role="status" className="panel">Loading classroom…</p>}

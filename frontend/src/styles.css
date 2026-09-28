@@ -61,6 +61,11 @@ summary { cursor: pointer; }
 .not-understand-key, .feedback-not-understand-segment { background: #dc2626; }
 .feedback-split-bar { display: flex; height: 13px; margin-top: 8px; overflow: hidden; border-radius: 4px; background: #e2e8f0; }
 .feedback-split-bar span { display: block; height: 100%; flex: none; }
+.adaptive-tools .workspace-tabs { flex-wrap: wrap; }
+.adaptive-tools .workspace-tabs button { flex: 1; padding: 6px 8px; font-size: 12px; }
+.adaptive-card { min-width: 0; padding: 12px; border: 1px solid #dbe3e1; border-radius: 6px; }
+.adaptive-text { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 14px; }
+.activity-workspace textarea { min-width: 0; max-width: 100%; resize: vertical; }
 .live-feedback [data-testid=confusion-status] { padding: 6px 8px; font-size: 12px; }
 .live-feedback [data-testid=confusion-status] { margin-top: 2px; }
 .live-feedback .panel > p { padding-top: 4px; font-size: 12px; line-height: 1.4; }
@@ -200,7 +205,7 @@ body { background: var(--paper); color: var(--ink); }
 .material-area .panel { border-left: 4px solid #aacfbf; }
 .activity-workspace { padding: 0 0 14px; gap: 10px; overflow: hidden; }
 .activity-workspace > :not(.tool-heading):not(.workspace-tabs) { margin-left: 14px; margin-right: 14px; }
-.activity-workspace > select { width: calc(100% - 28px); }
+.activity-workspace > select, .activity-workspace > textarea { width: calc(100% - 28px); }
 .tool-heading { padding: 15px 15px 5px; }
 .tool-heading .eyebrow { font-size: 10px; }
 .tool-heading h2 { margin-top: 3px; font-size: 17px; letter-spacing: -.025em; }

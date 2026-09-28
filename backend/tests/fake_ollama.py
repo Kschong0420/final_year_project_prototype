@@ -12,7 +12,12 @@ def tags():
 
 
 @app.post("/api/generate")
-def generate():
+def generate(body: dict):
+    if '"source_quote"' in body.get('prompt', ''):
+        return {"response": json.dumps({
+            "explanation": "Plants use photosynthesis to turn light energy into chemical energy. Chlorophyll absorbs light in the chloroplast. Carbon dioxide and water are used to produce glucose and oxygen.",
+            "source_quote": "Chlorophyll absorbs light in the chloroplast.",
+        }), "done": True}
     questions = [
         {"type": "mcq", "prompt": "Which pigment absorbs light in the chloroplast?",
          "options": ["Chlorophyll", "Oxygen", "Water", "Glucose"], "correct_index": 0},

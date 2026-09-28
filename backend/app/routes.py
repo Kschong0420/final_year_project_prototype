@@ -23,7 +23,7 @@ class JoinSession(BaseModel):
 
 @router.get("/health")
 async def health():
-    return {"status": "ok", "storage": "in-memory", "milestone": 4}
+    return {"status": "ok", "storage": "in-memory", "milestone": 5}
 
 
 @router.post("/sessions", status_code=201)

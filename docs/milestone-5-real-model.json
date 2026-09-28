@@ -1,0 +1,40 @@
+{
+  "attempts": [
+    {
+      "outcome": "generated",
+      "model": "phi3:mini",
+      "source_slide": 1,
+      "source_text": "Photosynthesis converts light energy into chemical energy in plants. Chlorophyll absorbs light in the chloroplast. Plants use carbon dioxide and water to produce glucose and oxygen during photosynthesis.",
+      "original_output": "Photosynthesis is a process where plants transform light energy into chemical energy. This occurs in the chloroplasts, where chlorophyll, the green pigment, captures light. Plants take in carbon dioxide and water, and through photosynthesis, they produce glucose for energy and release oxygen as a byproduct. This process is vital for plant growth and provides the oxygen we breathe.",
+      "source_quote": "Photosynthesis converts light energy into chemical energy in plants. Chlorophyll absorbs light in the chloroplast. Plants use carbon dioxide and water to produce glucose and oxygen during photosynthesis.",
+      "generation_seconds": 6.94,
+      "timeout_seconds": 45.0,
+      "review": "Structural validation passed, but source-grounding review failed: green pigment, plant growth, and oxygen we breathe were not stated in the source."
+    },
+    {
+      "outcome": "generated",
+      "model": "phi3:mini",
+      "source_slide": 1,
+      "source_text": "Photosynthesis converts light energy into chemical energy in plants. Chlorophyll absorbs light in the chloroplast. Plants use carbon dioxide and water to produce glucose and oxygen during photosynthesis.",
+      "original_output": "Photosynthesis is the process where plants transform light energy into chemical energy. This occurs when chlorophyll, present in chloroplasts, absorbs light. Using carbon dioxide and water, plants produce glucose, a sugar that serves as food, and oxygen, which is released into the air. This process is vital for plant growth and provides oxygen for other organisms.",
+      "source_quote": "Photosynthesis converts light energy into chemical energy in plants. Chlorophyll absorbs light in the chloroplast. Plants use carbon dioxide and water to produce glucose and oxygen during photosynthesis.",
+      "generation_seconds": 2.12,
+      "timeout_seconds": 45.0,
+      "prompt_version": "stricter source-only clauses",
+      "review": "Source-grounding review failed: glucose as food, release into air, plant growth and oxygen for other organisms are not stated in the source."
+    },
+    {
+      "outcome": "generated",
+      "model": "phi3:mini",
+      "source_slide": 1,
+      "source_text": "Photosynthesis converts light energy into chemical energy in plants. Chlorophyll absorbs light in the chloroplast. Plants use carbon dioxide and water to produce glucose and oxygen during photosynthesis.",
+      "original_output": "Photosynthesis is a process where plants transform light energy into chemical energy. This happens in the chloroplasts, where chlorophyll absorbs light. Plants take in carbon dioxide and water, and through photosynthesis, they produce glucose and oxygen.",
+      "source_quote": "Photosynthesis converts light energy into chemical energy in plants. Chlorophyll absorbs light in the chloroplast. Plants use carbon dioxide and water to produce glucose and oxygen during photosynthesis.",
+      "generation_seconds": 2.74,
+      "timeout_seconds": 45.0,
+      "prompt_version": "short source-relative length and final source-only reminder",
+      "review": "Inspected against the source: no obvious external additions like those in earlier attempts; mainly a paraphrase with limited added clarity. This is a developer smoke review, not an independent quality or learning evaluation."
+    }
+  ],
+  "scope": "Three real local Phi-3 Mini requests using one short factual source. Prior attempts are retained, including their grounding failures. No timing or quality generalisation is claimed."
+}

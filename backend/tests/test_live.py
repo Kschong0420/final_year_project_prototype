@@ -146,7 +146,7 @@ class LiveClassroomTest(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(reconnected["my_feedback"], "not_understand")
                 self.assertNotIn("current_feedback", reconnected)
                 print("PASS: per-slide feedback, updates, thresholds, privacy, live broadcast and reconnect")
-                print("PASS: confusion flag is a rule result; no explanation event or AI integration exists")
+                print("PASS: confusion flag is a rule result; no automatic explanation event")
 
                 await teacher.send(json.dumps({"type": "end_session"}))
                 await receive_until(teacher, lambda m: m.get("status") == "ended")
