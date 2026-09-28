@@ -85,9 +85,9 @@ test('M5: manual explanations, private review, live sharing and anonymous questi
     await expect(a.getByTestId('shared-explanation')).toContainText(edited)
 
     await a.getByRole('tab', { name: 'Ask a question', exact: true }).click()
-    await expect(a.getByRole('button', { name: 'Send question anonymously' })).toBeDisabled()
+    await expect(a.getByRole('button', { name: 'Send question', exact: true })).toBeDisabled()
     await a.getByLabel('Your anonymous question').fill('Which step uses carbon dioxide?')
-    await a.getByRole('button', { name: 'Send question anonymously' }).click()
+    await a.getByRole('button', { name: 'Send question', exact: true }).click()
     await expect(a.getByText('Question sent anonymously for slide 2.')).toBeVisible()
     await lecturer.getByRole('tab', { name: 'Questions (1)', exact: true }).click()
     await expect(lecturer.getByTestId('anonymous-question')).toHaveText('Which step uses carbon dioxide?')

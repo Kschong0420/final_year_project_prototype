@@ -45,7 +45,7 @@ test('local viewing modes, zoom, fullscreen, source following and mobile layout'
     }
     await lecturer.getByRole('button', { name: 'Class controls', exact: true }).click()
     await expect(lecturer.getByTestId('feedback-total')).toBeVisible()
-    await lecturer.getByRole('tab', { name: 'Generate', exact: true }).click()
+    await lecturer.getByLabel('Question tools', { exact: true }).selectOption('generate')
     await expect(lecturer.getByRole('button', { name: 'Generate questions', exact: true })).toBeVisible()
     await lecturer.keyboard.press('Escape')
     await expect(lecturer.getByLabel('Slide view', { exact: true })).toHaveValue('standard')

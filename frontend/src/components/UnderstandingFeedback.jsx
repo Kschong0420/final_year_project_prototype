@@ -61,11 +61,11 @@ export function StudentFeedback({ state, active, submitFeedback, feedbackAck }) 
   </section>
 }
 
-export function LecturerFeedback({ state, onExplain }) {
+export function LecturerFeedback({ state, onExplain, compact = false }) {
   const feedback = state.current_feedback
   const flagged = state.flagged_slides || []
   const rules = state.confusion_rules
-  return <section className="panel" aria-labelledby="insights-title">
+  return <section className={'panel ' + (compact ? 'feedback-compact' : '')} aria-labelledby="insights-title">
     <div className="flex flex-wrap items-baseline justify-between gap-1">
       <h2 id="insights-title" className="text-sm font-semibold">Understanding · Slide {state.current_slide + 1}</h2>
       <p data-testid="feedback-total" className="text-xs text-slate-600">{feedback.total} {feedback.total === 1 ? 'response' : 'responses'} submitted</p>
@@ -81,15 +81,22 @@ export function LecturerFeedback({ state, onExplain }) {
         <span className="feedback-not-understand-segment" data-testid="feedback-not-understand-segment" style={{ width: `${feedback.not_understand_percent}%` }} />
       </div>
     </div>
-    <p className="text-xs text-slate-500">Self-reported understanding, not a diagnosis.</p>
+    {!compact && <p className="text-xs text-slate-500">Self-reported understanding, not a diagnosis.</p>}
     <div className={'mt-2 rounded border px-2 py-1 text-xs ' + (feedback.flagged ? 'border-amber-300 bg-amber-50 text-amber-950' : 'border-slate-200 text-slate-700')} data-testid="confusion-status" role="status">
       {feedback.flagged ? 'Potential confusion on this slide' : 'No confusion flag for this slide'}
     </div>
-    <p className="mt-2 text-xs text-slate-600">Flagged slides: <span data-testid="flagged-slides">{flagged.length ? flagged.map(index => index + 1).join(', ') : 'None'}</span></p>
-    <details className="mt-2 text-xs text-slate-500"><summary>Feedback details</summary>
+    {!compact && <p className="mt-2 text-xs text-slate-600">Flagged slides: <span data-testid="flagged-slides">{flagged.length ? flagged.map(index => index + 1).join(', ') : 'None'}</span></p>}
+    <div className={compact ? 'feedback-actions' : ''}>
+    <details className="feedback-details mt-2 text-xs text-slate-500" onKeyDown={event => {
+      if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus() }
+    }}><summary>Feedback details</summary>
+      <div className="feedback-details-content">
+      {compact && <p>Flagged slides: <span data-testid="flagged-slides">{flagged.length ? flagged.map(index => index + 1).join(', ') : 'None'}</span></p>}
       <p className="mt-1">Self-reported understanding, not a confirmed diagnosis. Flags never generate AI content automatically.</p>
       <p className="mt-1">Flagged when at least {rules.min_responses} students respond and Not Understand reaches {rules.threshold_percent}% of submitted responses. Unsubmitted responses are not counted as Understand.</p>
+      </div>
     </details>
     {onExplain && <button className="secondary mt-2" onClick={onExplain}>Explain this slide</button>}
+    </div>
   </section>
 }

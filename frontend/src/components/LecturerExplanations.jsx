@@ -68,7 +68,7 @@ export default function LecturerExplanations({ state, credentials, active, slide
     <select id="explanation-slide" value={slideIndex} onChange={event => onSourceChange(Number(event.target.value))}>
       {state.slides.map((slide, index) => <option key={index} value={index}>Slide {index + 1} — {slide.title}{state.flagged_slides?.includes(index) ? ' · Flagged' : ''}</option>)}
     </select>
-    <details className="source-text" open><summary>Explanation source text</summary><pre className="adaptive-text max-h-40 overflow-auto">{source || 'No selectable text. A reliable explanation cannot be generated from this slide.'}</pre></details>
+    <details className="source-text"><summary>Explanation source text</summary><pre className="adaptive-text max-h-40 overflow-auto">{source || 'No selectable text. A reliable explanation cannot be generated from this slide.'}</pre></details>
     <p className="text-xs text-slate-600">Review the source and AI output. Nothing is shared automatically.</p>
     <button className="primary" disabled={!active || busy || state.explanation_generation_in_progress} onClick={generate}>Generate explanation</button>
     {(busy || state.explanation_generation_in_progress) && <p role="status" className="text-sm">Generating explanation. Slides and feedback remain available.</p>}

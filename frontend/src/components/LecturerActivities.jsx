@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { activityRequest } from '../services/api'
 import WorkspaceTabs from './WorkspaceTabs'
+import SessionAnalytics from './SessionAnalytics'
 
 function QuestionEditor({ activity, active, credentials, onDirtyChange }) {
   const [draft, setDraft] = useState(activity.current)
@@ -107,13 +108,13 @@ function ActivityRelease({ activity, credentials, active, onReview, dirty }) {
     finally { setBusy(false) }
   }
   return <article className="rounded-md border border-slate-200 p-3" data-testid="activity-release">
-    <h3 className="text-sm font-semibold">{activity.current.prompt}</h3>
-    {activity.current.type === 'mcq' ? <ul className="mt-2 space-y-1 text-sm">{activity.current.options.map((option, index) => <li key={index}>{String.fromCharCode(65 + index)}. {option}</li>)}</ul>
-      : <p className="mt-2 text-sm">Expected answer: {activity.current.expected_answer}</p>}
-    {activity.status === 'approved' ? <div className="mt-3 flex flex-wrap gap-2">
+    {activity.status === 'approved' ? <div className="mb-3 flex flex-wrap gap-2">
       <button className="primary" disabled={!active || busy || dirty} onClick={release}>{busy ? 'Releasing…' : 'Release activity'}</button>
       <button className="secondary" onClick={onReview}>Review / edit</button>
     </div> : <p className="mt-3 text-sm text-teal-800">Released · {activity.total_submissions} submissions. Open Results for responses.</p>}
+    <h3 className="text-sm font-semibold">{activity.current.prompt}</h3>
+    {activity.current.type === 'mcq' ? <ul className="mt-2 space-y-1 text-sm">{activity.current.options.map((option, index) => <li key={index}>{String.fromCharCode(65 + index)}. {option}</li>)}</ul>
+      : <p className="mt-2 text-sm">Expected answer: {activity.current.expected_answer}</p>}
     {dirty && <p className="mt-2 text-sm text-amber-800">This question has unsaved edits. Review and save them, then approve before release.</p>}
     {error && <p role="alert" className="mt-2 text-sm text-red-700">{error}</p>}
   </article>
@@ -155,25 +156,23 @@ export default function LecturerActivities({ state, credentials, active, area, s
   return <section className="activity-workspace" aria-label={results ? 'Activity results' : 'Classroom activities'}>
     <div className="tool-heading"><span className="eyebrow">{results ? 'REVIEW RESPONSES' : area === 'live' ? 'CLASS CONTROLS' : 'QUESTION WORKBENCH'}</span>
       <h2 className="text-lg font-semibold">{results ? 'Activity results' : area === 'live' ? `Slide ${slideIndex + 1} activities` : 'Prepare questions'}</h2></div>
-    {results && <div className="results-overview" aria-label="Results overview">
-      <span><strong>{all.filter(item => item.status === 'released').length}</strong> released activities</span>
-      <span><strong>{all.filter(item => item.status === 'released').reduce((sum, item) => sum + item.total_submissions, 0)}</strong> answers submitted</span>
-      <span><strong>{state.flagged_slides?.length || 0}</strong> flagged slides</span>
-    </div>}
+    {results && <SessionAnalytics state={state} />}
     {busy || state.activity_generation_in_progress ? <p role="status" className="text-sm text-teal-800">Generating questions. Classroom controls remain available.</p> : null}
     {notice && <p role="status" className="text-sm text-teal-800">{notice}</p>}
     {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-    {!results && <>
+    {!results && <div className={area === 'live' ? 'live-activity-controls' : 'activity-controls'}>
+      <div>
       <label className="field-label" htmlFor="activity-slide">Source slide</label>
       <select id="activity-slide" value={slideIndex} disabled={!active} onChange={event => onSourceChange(Number(event.target.value))}>
         {state.slides.map((item, index) => <option key={index} value={index}>Slide {index + 1} - {item.title} ({all.filter(question => question.slide_index === index && question.status === 'approved').length} saved)</option>)}
       </select>
+      </div>
       <p className={area === 'live' ? 'sr-only' : 'text-xs text-slate-500'}>Source follows classroom slide changes. Selecting a source does not move the classroom slide.</p>
-      <WorkspaceTabs label="Question tools" value={panel} onChange={setPanel} items={[
+      <WorkspaceTabs label="Question tools" value={panel} onChange={setPanel} asSelect={area === 'live'} items={[
         ...(area === 'live' ? [{ value: 'activities', label: 'Activities' }] : []),
         { value: 'generate', label: 'Generate' }, { value: 'review', label: 'Review' },
       ]} />
-    </>}
+    </div>}
     <div hidden={results || panel !== 'generate'}>
       {!state.active_material && <p className="text-sm text-slate-600">Upload a PDF or PPTX in Prepare to generate questions.</p>}
       <details className="source-text" open><summary>Extracted text used for generation</summary>
@@ -195,7 +194,13 @@ export default function LecturerActivities({ state, credentials, active, area, s
         onClick={generate}>{busy || state.activity_generation_in_progress ? 'Generating questions...' : 'Generate questions'}</button>
     </div>
     <div hidden={!results && panel === 'generate'} className={results ? 'results-layout' : ''}>
-      <div className="question-list">
+      {area === 'live' && visible.length > 0 && <div className="live-question-picker">
+        <label className="field-label" htmlFor="live-question">{panel === 'activities' ? 'Approved and released activities' : 'Question to review'}</label>
+        <select id="live-question" value={chosen || ''} onChange={event => setSelected(event.target.value)}>
+          {visible.map((item, index) => <option key={item.id} value={item.id}>{index + 1}. {item.current.prompt} · {item.status}</option>)}
+        </select>
+      </div>}
+      <div className="question-list" hidden={area === 'live' && visible.length > 0}>
         {!results && <p className="text-xs text-slate-600">{activities.filter(item => item.status === 'pending').length} awaiting review / {activities.filter(item => item.status === 'approved').length} saved / {activities.filter(item => item.status === 'released').length} released</p>}
         {visible.length ? visible.map((item, index) => <button key={item.id} className="question-summary" aria-pressed={chosen === item.id} onClick={() => setSelected(item.id)}>
           <span className="block text-xs text-slate-500">Slide {item.slide_index + 1} / {item.status === 'pending' ? 'Awaiting review' : item.status === 'approved' ? 'Saved for later' : item.status}</span>

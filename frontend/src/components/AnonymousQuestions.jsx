@@ -36,14 +36,20 @@ export function StudentQuestion({ state, credentials, active }) {
     } catch (failure) { setError(failure.message) }
     finally { setBusy(false) }
   }
-  return <form className="activity-workspace" onSubmit={submit}>
-    <h2 className="font-semibold">Ask a question · Slide {slide + 1}</h2>
-    <p className="text-xs text-slate-600">Your question is sent to the lecturer without your identity. Avoid including your name or personal details.</p>
-    <label className="field-label" htmlFor="anonymous-question">Your anonymous question</label>
-    <textarea id="anonymous-question" rows={4} maxLength={1000} value={text} disabled={!active || busy}
+  return <form className="panel student-question-form" onSubmit={submit} aria-labelledby="student-question-title">
+    <header className="student-question-heading">
+      <h2 id="student-question-title" className="font-semibold">Question for your lecturer</h2>
+      <span className="text-xs text-slate-500">Slide {slide + 1}</span>
+    </header>
+    <p id="question-privacy" className="text-xs text-slate-600">Sent anonymously. Leave out names or personal details.</p>
+    <label className="sr-only" htmlFor="anonymous-question">Your anonymous question</label>
+    <textarea id="anonymous-question" rows={3} maxLength={1000} value={text} disabled={!active || busy}
+      aria-describedby="question-privacy question-length" placeholder="What would you like explained?"
       onChange={event => { setDrafts({ ...drafts, [slide]: event.target.value }); setError(''); setNotice('') }} />
-    <p className="text-xs text-slate-500">{text.length}/1000 · Drafts stay with their slide.</p>
-    <button className="primary" disabled={!active || busy || !text.trim()}>{busy ? 'Sending question…' : 'Send question anonymously'}</button>
+    <footer className="student-question-footer">
+      <span id="question-length" className="text-xs text-slate-500">{text.length} / 1,000</span>
+      <button className="primary" disabled={!active || busy || !text.trim()}>{busy ? 'Sending…' : 'Send question'}</button>
+    </footer>
     {notice && <p role="status" className="text-sm text-teal-800">{notice}</p>}
     {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
   </form>

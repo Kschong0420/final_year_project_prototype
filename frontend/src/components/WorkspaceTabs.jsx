@@ -1,7 +1,13 @@
 import { useId } from 'react'
 
-export default function WorkspaceTabs({ label, value, onChange, items, stages = false }) {
+export default function WorkspaceTabs({ label, value, onChange, items, stages = false, asSelect = false }) {
   const id = useId()
+  if (asSelect) return <div className="workspace-task-select">
+    <label className="field-label" htmlFor={id}>{label}</label>
+    <select id={id} value={value} onChange={event => onChange(event.target.value)}>
+      {items.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
+    </select>
+  </div>
   return <div className={'workspace-tabs ' + (stages ? 'stage-navigation' : '')} role="tablist" aria-label={label}>
     {items.map((item, index) => <button key={item.value} id={`${id}-${item.value}`} type="button"
       role="tab" aria-label={item.label} aria-selected={value === item.value} tabIndex={value === item.value ? 0 : -1}

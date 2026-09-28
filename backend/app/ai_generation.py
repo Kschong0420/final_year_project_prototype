@@ -7,7 +7,7 @@ from typing import Literal
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
-from .explanation_generation import explanation_prompt, parse_explanation, source_error
+from .explanation_generation import explanation_prompt, parse_explanation, source_error, validate_support
 
 
 class AIError(Exception):
@@ -167,21 +167,30 @@ class OllamaClient:
             raise AIError(f"Ollama is running, but model '{self.model}' is unavailable. Run 'ollama pull {self.model}'.", 503)
         return {"model": self.model, "available": True}
 
-    async def explain(self, source, slide_number):
+    async def explain(self, source, slide_number, retry_allowed=None):
         problem = source_error(source)
         if problem:
             raise AIError(problem, 422)
         started = time.monotonic()
         await self.status()
-        raw = await self._request(explanation_prompt(source, slide_number), "an explanation")
-        try:
-            explanation, quote = parse_explanation(raw)
-        except ValueError as exc:
-            raise AIError(str(exc)) from exc
-        if (" ".join(quote.split()) not in " ".join(source.split()) or
-                not (_topic_terms(explanation) & _topic_terms(source))):
-            raise AIError("Ollama returned an explanation without valid source support. Nothing was saved; review the source and retry.")
-        return explanation, quote, round(time.monotonic() - started, 2), self.model
+        prompt = explanation_prompt(source, slide_number)
+        for attempt in range(2):
+            raw = await self._request(prompt, "an explanation")
+            try:
+                explanation, quote = parse_explanation(raw)
+            except ValueError as exc:
+                raise AIError(str(exc)) from exc  # Malformed output is not a grounding retry.
+            try:
+                validate_support(explanation, quote, source)
+            except ValueError as exc:
+                if attempt == 1:
+                    raise AIError("Ollama returned an explanation without valid source support. Nothing was saved; review the source and retry.") from exc
+                if retry_allowed is not None and not retry_allowed():
+                    raise AIError("The session or presentation changed during generation. Nothing was saved.", 409) from exc
+                prompt += ("\nThe previous response could not be verified against the source. "
+                           "Regenerate using only the supplied source and copy a supporting source phrase exactly.")
+                continue
+            return explanation, quote, round(time.monotonic() - started, 2), self.model
 
     async def generate(self, source, slide_number, difficulty="basic", teaching_notes=""):
         levels = {

@@ -18,6 +18,11 @@ class, or request additional questions during class, then edit, approve and rele
 Students answer released questions; the lecturer sees aggregate responses.
 Lecturers can also request a simplified AI explanation, review/edit it, approve it and explicitly
 share it. Students can send anonymous text questions to the lecturer, grouped by slide.
+Explanation generation accepts factual bullet points and tolerates harmless punctuation and line
+break differences in supporting quotes. Unsupported claims still fail validation; one corrective
+model retry is allowed only for a structured response that fails source support checks.
+Results includes **Session Analytics**: current connections, released activities, answer
+submissions, feedback, anonymous questions and explanation counts from the live session.
 
 The interface follows a **lecture desk** flow: create a lecture, prepare its material and
 questions, teach with the live slide, then inspect responses. The home screen provides a
@@ -32,6 +37,36 @@ These are interface views, not new session states. See
 
 This is a face-to-face classroom tool. It has no video, audio, screen sharing or recording.
 Attendance and database integration are not implemented.
+
+## First-time Windows setup
+
+Install Python 3.12 (or `uv` with Python 3.12 available), Node.js 20.19+ or 22.12+ with npm,
+and Ollama. LibreOffice is optional: PPTX slides use a labelled text view without it.
+From a PowerShell terminal in the repository root:
+
+```powershell
+.\setup.ps1
+.\check.ps1
+.\run.ps1
+```
+
+`setup.ps1` creates the backend virtual environment when needed, satisfies
+`backend/requirements.txt`, and uses `frontend/package-lock.json` with `npm ci` when frontend
+packages need installation. It can be run again safely. It does **not** download the model
+automatically. To explicitly install the configured model (default `phi3:mini`), run
+`.\setup.ps1 -InstallModel`, or run `ollama pull phi3:mini` yourself. `check.ps1` reports
+readiness without installing anything. `run.ps1` checks ports, starts the local services,
+verifies `/api/health`, prints the lecturer and available LAN URLs, and displays logs.
+Keep its terminal open during class; press Ctrl+C to stop only the services it started.
+
+Students open the printed frontend URL from the **same reachable LAN** and enter the lecturer's
+session code. The frontend binds on port 5173; the backend remains on loopback port 8000.
+`run.ps1` does not change firewall rules. Its optional Ollama startup uses the local
+`ollama serve` command when the app is installed but stopped. If Ollama is unavailable,
+slides, feedback and already prepared activities still work; AI generation needs the
+configured model. PDF and PPTX are supported. Legacy `.ppt` files are **not** supported.
+Environment variables are read from the shell; `.env.example` is illustrative and is not
+loaded automatically. The commands below remain available for manual development startup.
 
 ## Run on Windows (PowerShell)
 
@@ -389,6 +424,9 @@ WebSocket snapshots omit correct answers and all pending, approved and discarded
 - Temporary role selection is NOT secure account authentication. Anyone with local access can
   create a session when none is active. Treat session tokens as temporary capabilities.
 - In-memory sessions and feedback are lost on backend restart and do not support multiple backend workers.
+- Session Analytics is available only while that one in-memory session exists. It is not a
+  historical report. Connected students are current connections, not attendance; answer
+  submissions are per activity, not unique students. MySQL, SQLAlchemy and JWT are not used.
 - The saved upload files and PDF previews remain on disk after a restart, but temporary session
   metadata is lost. Create a new session and upload the file again. Remove old files from
   `backend/storage/` manually when no longer needed.

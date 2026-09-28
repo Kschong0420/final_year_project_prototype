@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass, field
 from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from .ai_generation import AIError
+from .ai_generation import AIError, OllamaClient
 from .explanation_generation import source_error
 
 router = APIRouter(prefix="/api/sessions/{code}")
@@ -109,7 +109,16 @@ async def generate_explanation(code: str, body: SlideRequest, request: Request, 
         await session.broadcast()
     # Never hold the classroom lock during a model request.
     try:
-        original, quote, seconds, model = await request.app.state.ai.explain(source, body.slide_index + 1)
+        ai = request.app.state.ai
+        # Test doubles keep the original two-argument interface; the real client can avoid
+        # a corrective retry after this in-memory presentation has changed.
+        if isinstance(ai, OllamaClient):
+            original, quote, seconds, model = await ai.explain(
+                source, body.slide_index + 1,
+                retry_allowed=lambda: store.session is session and session.status == "active"
+                and session.presentation_id == body.presentation_id)
+        else:
+            original, quote, seconds, model = await ai.explain(source, body.slide_index + 1)
         async with store.lock:
             if store.session is not session or session.status != "active" or session.presentation_id != body.presentation_id:
                 raise HTTPException(409, "The session or presentation changed during generation. Nothing was saved.")
