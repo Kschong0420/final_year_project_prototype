@@ -48,6 +48,11 @@ test('lecturer PDF upload appears for two students and resets previous feedback'
       await student.getByRole('button', { name: 'Understand', exact: true }).click()
     }
     await expect(lecturer.getByTestId('feedback-total')).toHaveText('2 responses submitted')
+    await expect(lecturer.getByLabel('Lecture file')).toHaveAttribute('accept', '.pdf,.pptx')
+    await expect(lecturer.getByText('Convert older .ppt files to .pptx before uploading.')).toBeVisible()
+    await lecturer.getByLabel('Lecture file').setInputFiles({ name: 'old.ppt', mimeType: 'application/vnd.ms-powerpoint', buffer: Buffer.from('old') })
+    await expect(lecturer.getByRole('alert')).toContainText('Convert older .ppt files to .pptx first.')
+    await expect(lecturer.getByRole('button', { name: 'Upload material' })).toBeDisabled()
     await lecturer.getByLabel('Lecture file').setInputFiles({ name: 'class.pdf', mimeType: 'application/pdf', buffer: smallPdf() })
     await expect(lecturer.getByText('Selected: class.pdf')).toBeVisible()
     await lecturer.getByRole('button', { name: 'Upload material' }).click()
@@ -60,9 +65,12 @@ test('lecturer PDF upload appears for two students and resets previous feedback'
       await expect(student.getByRole('img', { name: 'Page 1 from class.pdf' })).toBeVisible()
       await expect(student.getByTestId('my-feedback')).toHaveText('No response submitted for this slide.')
     }
-    await lecturer.getByText('Replace material', { exact: true }).click()
+    await lecturer.locator('summary').filter({ hasText: 'Replace material' }).click()
     await lecturer.getByLabel('Lecture file').setInputFiles({ name: 'class-two.pdf', mimeType: 'application/pdf', buffer: smallPdf() })
-    await lecturer.getByRole('button', { name: 'Upload material' }).click()
+    await expect(lecturer.getByText('Replacing this presentation clears its activities and answers, understanding feedback, AI explanations and anonymous questions. Unsaved teaching notes are also cleared.')).toBeVisible()
+    await expect(lecturer.getByRole('button', { name: 'Replace material' })).toBeDisabled()
+    await lecturer.getByLabel('I understand; replace this material').check()
+    await lecturer.getByRole('button', { name: 'Replace material' }).click()
     await expect(lecturer.getByText('class-two.pdf is ready (1 slide).')).toBeVisible()
     await expect(lecturer.getByRole('alert')).toHaveCount(0)
     for (const student of [studentA, studentB]) {
@@ -72,11 +80,12 @@ test('lecturer PDF upload appears for two students and resets previous feedback'
     await studentB.getByRole('button', { name: 'Not Understand' }).click()
     await expect(lecturer.getByTestId('feedback-total')).toHaveText('2 responses submitted')
     await expect(lecturer.getByTestId('confusion-status')).toContainText('Potential confusion')
-    await lecturer.getByText('Replace material', { exact: true }).click()
+    await lecturer.locator('summary').filter({ hasText: 'Replace material' }).click()
     await lecturer.getByLabel('Lecture file').setInputFiles({
       name: 'unreadable.pdf', mimeType: 'application/pdf', buffer: Buffer.from('This is not a PDF.'),
     })
-    await lecturer.getByRole('button', { name: 'Upload material' }).click()
+    await lecturer.getByLabel('I understand; replace this material').check()
+    await lecturer.getByRole('button', { name: 'Replace material' }).click()
     await expect(lecturer.getByRole('alert')).toContainText('Could not process this PDF')
     await expect(lecturer.getByTestId('slide-number')).toHaveText('Slide 1 of 1')
     await expect(lecturer.getByTestId('feedback-total')).toHaveText('2 responses submitted')
@@ -86,7 +95,8 @@ test('lecturer PDF upload appears for two students and resets previous feedback'
     await lecturer.getByLabel('Lecture file').setInputFiles({
       name: 'oversized.pdf', mimeType: 'application/pdf', buffer: Buffer.alloc(25 * 1024 * 1024 + 1, 65),
     })
-    await lecturer.getByRole('button', { name: 'Upload material' }).click()
+    await lecturer.getByLabel('I understand; replace this material').check()
+    await lecturer.getByRole('button', { name: 'Replace material' }).click()
     await expect(lecturer.getByRole('alert')).toContainText('File is too large')
     await expect(lecturer.getByTestId('feedback-total')).toHaveText('2 responses submitted')
     await expect(lecturer.getByTestId('slide-number')).toHaveText('Slide 1 of 1')

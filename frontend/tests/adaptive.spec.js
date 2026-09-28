@@ -126,9 +126,10 @@ test('M5: manual explanations, private review, live sharing and anonymous questi
     expect(overflow).toEqual([])
 
     await lecturer.getByRole('tab', { name: 'Prepare', exact: true }).click()
-    await lecturer.getByText('Replace material', { exact: true }).click()
+    await lecturer.locator('summary').filter({ hasText: 'Replace material' }).click()
     await lecturer.getByLabel('Lecture file').setInputFiles({ name: 'replacement.pdf', mimeType: 'application/pdf', buffer: sourcePdf() })
-    await lecturer.getByRole('button', { name: 'Upload material' }).click()
+    await lecturer.getByLabel('I understand; replace this material').check()
+    await lecturer.getByRole('button', { name: 'Replace material' }).click()
     await expect(lecturer.getByText('replacement.pdf is ready (2 slides).')).toBeVisible()
     await expect(a.getByLabel('Your anonymous question')).toHaveValue('')
     await expect(b.getByText('No explanations shared yet.')).toBeVisible()

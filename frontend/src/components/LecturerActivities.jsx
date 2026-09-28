@@ -3,6 +3,8 @@ import { activityRequest } from '../services/api'
 import WorkspaceTabs from './WorkspaceTabs'
 import SessionAnalytics from './SessionAnalytics'
 
+const statusLabel = { pending: 'Pending review', approved: 'Approved', released: 'Released', discarded: 'Discarded' }
+
 function QuestionEditor({ activity, active, credentials, onDirtyChange }) {
   const [draft, setDraft] = useState(activity.current)
   const [busy, setBusy] = useState(false)
@@ -125,13 +127,13 @@ export default function LecturerActivities({ state, credentials, active, area, s
   const [selected, setSelected] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [generationNotice, setGenerationNotice] = useState(null)
   const [difficulty, setDifficulty] = useState('basic')
   const [notes, setNotes] = useState({})
   const [dirtyQuestions, setDirtyQuestions] = useState({})
   const onDirtyChange = useCallback((id, dirty) => setDirtyQuestions(previous => previous[id] === dirty ? previous : { ...previous, [id]: dirty }), [])
   const teachingNotes = notes[slideIndex] || ''
-  useEffect(() => { setNotes({}); setNotice(''); setError(''); setSelected(null) }, [state.presentation_id])
+  useEffect(() => { setNotes({}); setGenerationNotice(null); setError(''); setSelected(null) }, [state.presentation_id])
   useEffect(() => { setPanel(area === 'live' ? 'activities' : 'generate') }, [area])
   useEffect(() => { if (requestedPanel) setPanel(requestedPanel.value) }, [requestedPanel])
   const source = state.slides[slideIndex]?.text?.trim() || ''
@@ -143,70 +145,86 @@ export default function LecturerActivities({ state, credentials, active, area, s
   const visible = (results ? all.filter(item => item.status === 'released') : panel === 'activities'
     ? activities.filter(item => item.status === 'approved' || item.status === 'released') : activities)
   const chosen = visible.some(item => item.id === selected) ? selected : visible[0]?.id
+  const pendingGenerated = generationNotice?.createdIds.filter(id => all.some(item => item.id === id && item.status === 'pending')).length || 0
   async function generate() {
-    setBusy(true); setError(''); setNotice('')
+    setBusy(true); setError(''); setGenerationNotice(null)
     try {
       const result = await activityRequest(credentials.code, credentials.token, '/generate', 'POST',
         { presentation_id: state.presentation_id, slide_index: slideIndex, difficulty, teaching_notes: teachingNotes })
-      setNotice(`Slide ${slideIndex + 1}: ${result.created_ids.length} questions ready for review. Nothing was released. ${result.warnings.join(' ')}`)
+      setGenerationNotice({ slide: slideIndex + 1, createdIds: result.created_ids, warnings: result.warnings })
       setSelected(result.created_ids[0]); setPanel('review')
     } catch (failure) { setError(failure.message) }
     finally { setBusy(false) }
   }
-  return <section className="activity-workspace" aria-label={results ? 'Activity results' : 'Classroom activities'}>
+  return <section className={`activity-workspace ${results ? 'results-workspace' : ''}`} aria-label={results ? 'Activity results' : 'Classroom activities'}>
     <div className="tool-heading"><span className="eyebrow">{results ? 'REVIEW RESPONSES' : area === 'live' ? 'CLASS CONTROLS' : 'QUESTION WORKBENCH'}</span>
       <h2 className="text-lg font-semibold">{results ? 'Activity results' : area === 'live' ? `Slide ${slideIndex + 1} activities` : 'Prepare questions'}</h2></div>
-    {results && <SessionAnalytics state={state} />}
     {busy || state.activity_generation_in_progress ? <p role="status" className="text-sm text-teal-800">Generating questions. Classroom controls remain available.</p> : null}
-    {notice && <p role="status" className="text-sm text-teal-800">{notice}</p>}
-    {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+    {!results && panel === 'review' && generationNotice && (pendingGenerated > 0 || generationNotice.createdIds.length === 0 || generationNotice.warnings.length > 0) &&
+      <p role="status" className="text-sm text-teal-800">Slide {generationNotice.slide}: {pendingGenerated > 0
+        ? `${pendingGenerated} ${pendingGenerated === 1 ? 'question' : 'questions'} awaiting review.`
+        : generationNotice.createdIds.length === 0 ? 'No questions were saved. Check the source and try again.' : 'Generated questions have been reviewed.'}
+        {' '}{generationNotice.warnings.join(' ')}</p>}
+    {!results && error && <p role="alert" className="text-sm text-red-700">{error}</p>}
     {!results && <div className={area === 'live' ? 'live-activity-controls' : 'activity-controls'}>
       <div>
       <label className="field-label" htmlFor="activity-slide">Source slide</label>
       <select id="activity-slide" value={slideIndex} disabled={!active} onChange={event => onSourceChange(Number(event.target.value))}>
-        {state.slides.map((item, index) => <option key={index} value={index}>Slide {index + 1} - {item.title} ({all.filter(question => question.slide_index === index && question.status === 'approved').length} saved)</option>)}
+        {state.slides.map((item, index) => {
+          const questions = all.filter(question => question.slide_index === index)
+          return <option key={index} value={index}>Slide {index + 1} - {item.title} ({questions.filter(question => question.status === 'pending').length} pending / {questions.filter(question => question.status === 'approved').length} approved / {questions.filter(question => question.status === 'released').length} released)</option>
+        })}
       </select>
       </div>
-      <p className={area === 'live' ? 'sr-only' : 'text-xs text-slate-500'}>Source follows classroom slide changes. Selecting a source does not move the classroom slide.</p>
+      <p className={area === 'live' ? 'sr-only' : 'source-selection-note'}>Source preview only; the classroom slide stays put.</p>
       <WorkspaceTabs label="Question tools" value={panel} onChange={setPanel} asSelect={area === 'live'} items={[
         ...(area === 'live' ? [{ value: 'activities', label: 'Activities' }] : []),
         { value: 'generate', label: 'Generate' }, { value: 'review', label: 'Review' },
       ]} />
     </div>}
-    <div hidden={results || panel !== 'generate'}>
+    {area === 'prepare' && panel === 'review' && <p className="activity-status-counts" aria-live="polite">
+      <span>{activities.filter(item => item.status === 'pending').length} pending review</span>
+      <span>{activities.filter(item => item.status === 'approved').length} approved</span>
+      <span>{activities.filter(item => item.status === 'released').length} released</span>
+      {activities.some(item => item.status === 'discarded') && <span>{activities.filter(item => item.status === 'discarded').length} discarded</span>}
+    </p>}
+    <div hidden={results || panel !== 'generate'} className="generation-form">
       {!state.active_material && <p className="text-sm text-slate-600">Upload a PDF or PPTX in Prepare to generate questions.</p>}
-      <details className="source-text" open><summary>Extracted text used for generation</summary>
+      <details className="source-text"><summary>Extracted source text</summary>
         <pre className="max-h-40 overflow-auto whitespace-pre-wrap font-sans text-sm">{source || 'No selectable text on this slide.'}</pre>
       </details>
-      <label className="field-label mt-3" htmlFor="teaching-notes">Additional teaching notes (optional)</label>
-      <textarea id="teaching-notes" rows={3} maxLength={4000} value={teachingNotes} disabled={!active || busy}
-        onChange={event => setNotes({ ...notes, [slideIndex]: event.target.value })} />
-      <p className="text-xs text-slate-500">Add factual context or relevant adjacent-slide text with its slide number. Notes stay separate from the extracted text.</p>
       <label className="field-label mt-3" htmlFor="question-difficulty">Question difficulty</label>
       <select id="question-difficulty" value={difficulty} disabled={!active || busy} onChange={event => setDifficulty(event.target.value)}>
         <option value="basic">Basic - recall and understanding</option><option value="intermediate">Intermediate - comprehension and application</option>
         <option value="advanced">Advanced - reasoning and application</option>
       </select>
-      <p className="mt-2 text-xs text-slate-500">Limited facts may support only basic questions. Review actual difficulty before approval.</p>
+      <details className="teaching-notes-details"><summary>Additional teaching notes (optional){teachingNotes ? ' · Added' : ''}</summary>
+        <label className="sr-only" htmlFor="teaching-notes">Additional teaching notes (optional)</label>
+        <textarea id="teaching-notes" rows={2} maxLength={4000} value={teachingNotes} disabled={!active || busy}
+          onChange={event => setNotes({ ...notes, [slideIndex]: event.target.value })} />
+        <p className="text-xs text-slate-500">Factual notes apply to this slide. Label any adjacent-slide context.</p>
+      </details>
+      {difficulty !== 'basic' && <p className="mt-2 text-xs text-slate-500">Limited source content may still produce basic questions. Check difficulty during review.</p>}
       {unusable && <p role="status" className="mt-2 text-sm text-amber-800">Insufficient extractable content, or context exceeds 10,000 characters. Adjust teaching notes or choose another slide. Images are not read.</p>}
       {source.split('|').length > 13 && <p className="text-sm text-amber-800">Check this table-heavy extracted text before generation.</p>}
-      <button className="primary mt-3" disabled={!active || busy || unusable || !state.active_material || state.activity_generation_in_progress}
-        onClick={generate}>{busy || state.activity_generation_in_progress ? 'Generating questions...' : 'Generate questions'}</button>
+      <div className="generation-action"><button className="primary" disabled={!active || busy || unusable || !state.active_material || state.activity_generation_in_progress}
+        onClick={generate}>{busy || state.activity_generation_in_progress ? 'Generating questions...' : 'Generate questions'}</button></div>
     </div>
     <div hidden={!results && panel === 'generate'} className={results ? 'results-layout' : ''}>
-      {area === 'live' && visible.length > 0 && <div className="live-question-picker">
+      {!results && visible.length > 0 && <div className="live-question-picker">
         <label className="field-label" htmlFor="live-question">{panel === 'activities' ? 'Approved and released activities' : 'Question to review'}</label>
         <select id="live-question" value={chosen || ''} onChange={event => setSelected(event.target.value)}>
-          {visible.map((item, index) => <option key={item.id} value={item.id}>{index + 1}. {item.current.prompt} · {item.status}</option>)}
+          {visible.map((item, index) => <option key={item.id} value={item.id}>{index + 1}. {item.current.prompt} · {statusLabel[item.status]}</option>)}
         </select>
       </div>}
-      <div className="question-list" hidden={area === 'live' && visible.length > 0}>
-        {!results && <p className="text-xs text-slate-600">{activities.filter(item => item.status === 'pending').length} awaiting review / {activities.filter(item => item.status === 'approved').length} saved / {activities.filter(item => item.status === 'released').length} released</p>}
+      {!results && panel !== 'generate' && visible.length === 0 && <p className="text-sm text-slate-600">{panel === 'activities'
+        ? 'No approved activities for this slide. Generate or review questions to prepare one.' : 'No questions for this slide yet.'}</p>}
+      <div className="question-list" hidden={!results} aria-label="Released activities">
         {visible.length ? visible.map((item, index) => <button key={item.id} className="question-summary" aria-pressed={chosen === item.id} onClick={() => setSelected(item.id)}>
-          <span className="block text-xs text-slate-500">Slide {item.slide_index + 1} / {item.status === 'pending' ? 'Awaiting review' : item.status === 'approved' ? 'Saved for later' : item.status}</span>
+          <span className="block text-xs text-slate-500">Slide {item.slide_index + 1} / {statusLabel[item.status]}</span>
           <span>{index + 1}. {item.current.prompt}</span>
-          {item.status === 'released' && <span className="block text-xs">{item.total_submissions} submissions</span>}
-        </button>) : <p className="text-sm text-slate-600">{results ? 'No activities released yet.' : panel === 'activities' ? 'No approved activities for this slide. Generate or review questions to prepare one.' : 'No questions for this slide yet.'}</p>}
+          <span className="block text-xs">{item.total_submissions} answer {item.total_submissions === 1 ? 'submission' : 'submissions'}</span>
+        </button>) : <p className="text-sm text-slate-600">No activities released yet.</p>}
       </div>
       <div>
         {all.map(activity => <div key={activity.id} hidden={results || panel !== 'review' || chosen !== activity.id}>
@@ -216,5 +234,6 @@ export default function LecturerActivities({ state, credentials, active, area, s
           : panel === 'activities' ? <ActivityRelease key={activity.id} activity={activity} credentials={credentials} active={active} dirty={dirtyQuestions[activity.id]} onReview={() => setPanel('review')} /> : null)}
       </div>
     </div>
+    {results && <SessionAnalytics state={state} />}
   </section>
 }

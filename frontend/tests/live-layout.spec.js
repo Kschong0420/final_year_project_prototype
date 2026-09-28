@@ -48,6 +48,24 @@ for (const width of [1366, 1024]) {
       await lecturer.getByLabel('Lecture file').setInputFiles({ name: 'layout.pdf', mimeType: 'application/pdf', buffer: sourcePdf() })
       await lecturer.getByRole('button', { name: 'Upload material', exact: true }).click()
       await expect(lecturer.getByText('layout.pdf is ready (2 slides).')).toBeVisible()
+      const workspaceTabs = lecturer.getByRole('tablist', { name: 'Lecturer workspace' })
+      const sidebarTitle = lecturer.locator('.main-workspace-tabs .stage-rail-title')
+      const descriptions = workspaceTabs.locator('.stage-copy small')
+      const navHeights = () => workspaceTabs.getByRole('tab').evaluateAll(tabs =>
+        tabs.map(tab => Math.round(tab.getBoundingClientRect().height)))
+      const prepareNavHeights = await navHeights()
+      for (const area of ['Live class', 'Results', 'Prepare']) {
+        await workspaceTabs.getByRole('tab', { name: area, exact: true }).click()
+        expect(await navHeights(), `${area} navigation at ${width}px`).toEqual(prepareNavHeights)
+        if (width > 1120) {
+          await expect(sidebarTitle).toBeVisible()
+          await expect(descriptions).toHaveCount(3)
+          for (const description of await descriptions.all()) await expect(description).toBeVisible()
+        } else {
+          await expect(sidebarTitle).toBeHidden()
+          for (const description of await descriptions.all()) await expect(description).toBeHidden()
+        }
+      }
       await lecturer.getByRole('button', { name: 'Generate questions', exact: true }).click()
       const question = lecturer.locator('[data-testid="review-question"]:visible')
       await question.getByRole('button', { name: 'Approve', exact: true }).click()

@@ -185,7 +185,7 @@ but students never receive unreleased questions. Joining does not change approva
 2. Preview the slides and extracted text. Under **Classroom activities**, choose a source slide.
    Prepare shows a local preview of the selected source. Classroom slide changes automatically update
    this source selector. Selecting another source never moves the students' classroom slide.
-3. Inspect the visible source text. Optionally add factual **Additional teaching notes**, including
+3. Open **Extracted source text** to inspect it. Optionally add factual **Additional teaching notes**, including
    relevant adjacent-slide text labelled with its slide number. Choose Basic, Intermediate or Advanced.
 4. **Generate questions**, review and edit, **Save edits**, then **Approve** to save for later;
    discard unsuitable questions. An edit requires approval again. Nothing releases automatically.
@@ -193,7 +193,7 @@ but students never receive unreleased questions. Joining does not change approva
    activities until the lecturer explicitly selects **Release activity** on an approved question in
    the Activities panel (or **Release to students** in its review editor).
 6. Navigate the live presentation. Select any question source slide to retrieve its saved questions
-   without generating again; the selector lists the approved count for each slide.
+   without generating again; the selector lists pending, approved and released counts by slide.
 7. Release a saved activity. Submit different answers in the two student windows and inspect the
    **Results** tab. Select an activity to see its live submission totals and responses. Submit
    understanding feedback and check the lecturer sidebar without refreshing.
@@ -202,12 +202,15 @@ but students never receive unreleased questions. Joining does not change approva
    be edited as needed and approved before an explicit release, exactly as during preparation.
 
 The Live class sidebar keeps understanding feedback above **Activities / Generate / Review**.
-Secondary panels scroll independently on desktop. Prepare includes a collapsible upload/replace
-form and **Generate / Review** tabs; select a question summary to open one editor. Hidden editors
+Secondary panels scroll independently on desktop. Prepare includes a compact material summary,
+a collapsible upload/replace form and **Generate / Review** tabs; select a question from the
+Review menu to open one editor. Replacing material requires acknowledging that activities and
+answers, feedback, explanations, anonymous questions and unsaved teaching notes are cleared. Hidden editors
 remain mounted, preserving unsaved drafts across tabs and source changes. Teaching notes remain
 associated with their source slide until the presentation is replaced. A question with unsaved edits
-cannot be released through the compact Activities panel. Results shows existing aggregate counts,
-MCQ option distributions and fill-in answer frequencies, not grades or named student reports.
+cannot be released through the compact Activities panel. Results places released activity answers
+beside the current-session analytics summary. It shows MCQ option distributions and fill-in answer
+frequencies, not grades, attendance or named student reports.
 
 ### Slide viewing controls
 

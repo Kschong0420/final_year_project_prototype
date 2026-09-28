@@ -255,3 +255,57 @@ navigation and student Half-screen sizing remain as audited. Storage, temporary 
 PPTX fidelity and extraction quality are unchanged. No new routes, socket events, dependencies,
 database/authentication system, AI model, automatic generation or automatic release/share were
 introduced. No commit or push was made. Work stops at Stage 1.
+
+## Stage 2: Lecturer Prepare and Results refinement — 2026-09-29
+
+Stage 2 began from a clean Git tree. The previous Windows scripts, point-form explanation
+grounding, and lecturer Session Analytics were present. A fresh pre-edit baseline passed:
+**58 backend tests**, **13 Playwright tests** with isolated fake Ollama, and the frontend
+production build. No backend code or application dependencies changed in this stage.
+
+Prepare now shows the current material, its slide count, supported formats and a Ready
+state in one compact panel. The file picker accepts PDF/PPTX; an older `.ppt` is rejected
+with conversion guidance. Replacement requires an explicit acknowledgement naming the
+actual cleared records: activities/answers, feedback, explanations, anonymous questions,
+and local teaching notes. Upload failures retain the active presentation and remain visible.
+The source selector still controls only the local preparation preview. Extracted text and
+optional notes are disclosures; difficulty and Generate remain visible in the default
+1024 × 768 layout. Review uses a single question selector with current pending, approved,
+released and discarded counts. Existing editors remain mounted across workspace changes,
+so unsaved question drafts and notes survive switching tasks.
+
+Results now leads with released activity selection and the selected answer distribution.
+The existing Session Analytics component sits alongside it on laptop screens and below it
+on mobile. Current-slide feedback is still available in Live class and in the analytics
+summary, without occupying a permanent Results column. Analytics remains limited to the
+current in-memory session; connections are not attendance and answer submissions are not
+unique students. The generation completion cue is shown only in the Review task and its
+pending count comes from current activity state. It no longer claims that nothing has
+been released after later approvals or releases. Background generation progress and
+actionable errors remain visible in the relevant activity workspace.
+
+The new `prepare-results.spec.js` exercises one lecturer and two students, two explicitly
+released activities, four answer submissions, selection and option distributions, draft
+retention, and 1366 × 768, 1024 × 768 and 390 × 844 geometry. The new layout test first
+caught Generate below the initial 1024 px viewport (button bottom 831 px) and then caught
+an overlapping sticky button; both were corrected. Its final run confirms Generate and
+the selected Results card are inside the initial laptop viewport, analytics is beside
+the Results card, and mobile Prepare/Results have no horizontal overflow. Mobile permits
+vertical scrolling. Existing `live-layout.spec.js` still reports a 768 px document at
+both laptop widths, 166 px compact feedback, accessible slide navigation and task space.
+
+| Check | Result |
+| --- | --- |
+| Pre-edit backend suite | **58 passed**, 10.608 s; not rerun after frontend-only edits |
+| Pre-edit browser suite | **13 passed**, 44.2 s |
+| Post-edit full browser suite | **14 passed**, 46.2 s; includes upload/PPTX, activities, adaptive, Session Analytics, Stage 1 layout, viewer and new Stage 2 flow |
+| Focused rerun after source-status wording change | **4 passed** (activities, Stage 1 laptop layout, Stage 2 viewport flow) |
+| Post-edit frontend production build | **Passed**, 43 modules |
+| `check.ps1` | Core prerequisites **PASS**; default ports 8000/5173 **WARNING** because other services were already using them; the isolated test services used 8779/5184/11445 |
+| `git diff --check` | **Passed** with only LF/CRLF conversion notices |
+
+Changed: `MaterialUpload.jsx`, `LecturerActivities.jsx`, `LivePage.jsx`, `styles.css`,
+`materials.spec.js`, `activities.spec.js`, `adaptive.spec.js`, `README.md`, and this document.
+Added `prepare-results.spec.js`. No Stage 3–5 work, route/socket changes, new analytics
+implementation, new persistence or commit/push was performed. Chromium and the local
+Windows environment were tested; physical LAN clients and other browsers were not.

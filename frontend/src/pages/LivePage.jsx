@@ -47,7 +47,7 @@ export default function LivePage({ credentials, onLeave }) {
     catch { setCopyStatus('Select the code above to copy it') }
   }
 
-  return <div className={`classroom-shell ${lecturer ? 'lecturer-shell' : 'student-shell'} ${lecturer && area === 'live' ? 'live-class-shell' : ''} ${expanded ? 'cinematic' : ''}`}>
+  return <div className={`classroom-shell ${lecturer ? 'lecturer-shell' : 'student-shell'} ${lecturer && area === 'live' ? 'live-class-shell' : ''} ${lecturer && area === 'prepare' ? 'prepare-class-shell' : ''} ${expanded ? 'cinematic' : ''}`}>
     <header className="classroom-header">
       <div className="min-w-0"><p className="eyebrow">{lecturer ? 'Lecture desk' : 'In class'}</p>
         <h1 className="truncate text-xl font-semibold" title={state?.title}>{state?.title || 'Joining lecture…'}</h1></div>
@@ -74,7 +74,7 @@ export default function LivePage({ credentials, onLeave }) {
     <div className="main-workspace-tabs" hidden={expanded}>
       {lecturer ? <><p className="stage-rail-title">YOUR LECTURE</p><WorkspaceTabs label="Lecturer workspace" stages value={area} onChange={setArea} items={[
         { value: 'prepare', label: 'Prepare', description: 'Material & questions' }, { value: 'live', label: 'Live class', description: 'Slides & responses' }, { value: 'results', label: 'Results', description: 'Activity answers' },
-      ]} /><div className="stage-next" hidden={area === 'live'} aria-live="polite"><span>UP NEXT</span><strong>{nextStep.label}</strong><p>{nextStep.detail}</p><button className="stage-next-action" aria-label={`Go to ${nextStep.label}`} onClick={nextStep.action}>{nextStep.label} <span aria-hidden="true">→</span></button></div></> : <div className="student-mobile-tabs"><WorkspaceTabs label="Student workspace" value={studentTab} onChange={setStudentTab} items={[
+      ]} /><div className="stage-next" hidden={area !== 'prepare'} aria-live="polite"><span>UP NEXT</span><strong>{nextStep.label}</strong><p>{nextStep.detail}</p><button className="stage-next-action" aria-label={`Go to ${nextStep.label}`} onClick={nextStep.action}>{nextStep.label} <span aria-hidden="true">→</span></button></div></> : <div className="student-mobile-tabs"><WorkspaceTabs label="Student workspace" value={studentTab} onChange={setStudentTab} items={[
         { value: 'slide', label: 'Slide' }, { value: 'activities', label: `Class tools (${(state?.released_activities?.length || 0) + (state?.shared_explanations?.length || 0)})` },
       ]} /></div>}
     </div>
@@ -87,7 +87,7 @@ export default function LivePage({ credentials, onLeave }) {
       <aside className="workspace-side">
         {lecturer ? <>
           <div hidden={area !== 'prepare'} className="material-area"><MaterialUpload credentials={credentials} active={active} material={state.active_material} /></div>
-          <div hidden={area === 'prepare'} className="live-feedback">{feedbackAvailable && <LecturerFeedback state={state} compact={area === 'live'}
+          <div hidden={area !== 'live'} className="live-feedback">{feedbackAvailable && <LecturerFeedback state={state} compact
             onExplain={() => { setArea('live'); setSourceIndex(state.current_slide); setLiveTool('explanations') }} />}</div>
           <div hidden={area !== 'live'} className="adaptive-tools"><WorkspaceTabs label="Live tools" value={liveTool} onChange={setLiveTool} items={[
             { value: 'activities', label: 'Activities & review' }, { value: 'explanations', label: 'Explanations' },
@@ -115,7 +115,6 @@ export default function LivePage({ credentials, onLeave }) {
         </>}
       </aside>
     </div> : <p role="status" className="panel">Loading classroom…</p>}
-    {lecturer && area === 'prepare' && !expanded && <p className="workspace-footnote">When ready, share the session code. Approved questions appear to students only after you release them.</p>}
     </div>
   </div>
 }
